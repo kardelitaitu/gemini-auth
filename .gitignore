@@ -9,3 +9,9 @@ dist/
 
 # Local benchmarking workspace
 benchmark/*
+
+# GitHub Actions (managed by external CI)
+.github/workflows/
+
+# Migration script (temporary)
+replace_codex.ps1
