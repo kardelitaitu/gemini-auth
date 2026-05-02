@@ -1,10 +1,10 @@
 const std = @import("std");
-const codex_auth = @import("codex_auth");
+const gemini_auth = @import("gemini_auth");
 
-const auto = codex_auth.auto;
+const auto = gemini_auth.auto;
 const fixtures = @import("support/fixtures.zig");
 const test_fixtures = fixtures;
-const registry = codex_auth.registry;
+const registry = gemini_auth.registry;
 const CandidateIndex = auto.CandidateIndex;
 
 test "candidate index refreshes cached ranking after a reset window expires" {

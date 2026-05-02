@@ -1,13 +1,13 @@
-# `codex-auth config`
+# `gemini-auth config`
 
 ## Usage
 
 ```shell
-codex-auth config auto enable
-codex-auth config auto disable
-codex-auth config auto --5h <percent> [--weekly <percent>]
-codex-auth config api enable
-codex-auth config api disable
+gemini-auth config auto enable
+gemini-auth config auto disable
+gemini-auth config auto --5h <percent> [--weekly <percent>]
+gemini-auth config api enable
+gemini-auth config api disable
 ```
 
 ## Auto-Switch Config

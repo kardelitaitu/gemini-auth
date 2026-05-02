@@ -166,7 +166,7 @@ fn commandNameForTopic(topic: HelpTopic) []const u8 {
 
 fn commandDescriptionForTopic(topic: HelpTopic) []const u8 {
     return switch (topic) {
-        .top_level => "Command-line account management for Codex.",
+        .top_level => "Command-line account management for Gemini.",
         .list => "List available accounts.",
         .status => "Show auto-switch, service, and usage API status.",
         .login => "Run `gemini login` or `gemini login --device-auth`, then add the current account.",

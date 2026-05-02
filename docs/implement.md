@@ -1,6 +1,6 @@
 # Implementation Details
 
-This document is the implementation index for `codex-auth`. Command-specific behavior lives in [docs/commands/README.md](./commands/README.md).
+This document is the implementation index for `gemini-auth`. Command-specific behavior lives in [docs/commands/README.md](./commands/README.md).
 
 ## Related Documents
 
@@ -14,20 +14,20 @@ This document is the implementation index for `codex-auth`. Command-specific beh
 
 ## Runtime State
 
-`codex-auth` stores local state under the resolved Codex home. The resolution order is:
+`gemini-auth` stores local state under the resolved Gemini home. The resolution order is:
 
-1. `CODEX_HOME` when it is set to a non-empty existing directory
-2. `HOME/.codex`
-3. `USERPROFILE/.codex` on Windows
+1. `GEMINI_HOME` when it is set to a non-empty existing directory
+2. `HOME/.gemini`
+3. `USERPROFILE/.gemini` on Windows
 
 Managed files:
 
-- `<codex_home>/auth.json`
-- `<codex_home>/accounts/registry.json`
-- `<codex_home>/accounts/<account file key>.auth.json`
-- `<codex_home>/accounts/auth.json.bak.YYYYMMDD-hhmmss[.N]`
-- `<codex_home>/accounts/registry.json.bak.YYYYMMDD-hhmmss[.N]`
-- `<codex_home>/sessions/...`
+- `<gemini_home>/auth.json`
+- `<gemini_home>/accounts/registry.json`
+- `<gemini_home>/accounts/<account file key>.auth.json`
+- `<gemini_home>/accounts/auth.json.bak.YYYYMMDD-hhmmss[.N]`
+- `<gemini_home>/accounts/registry.json.bak.YYYYMMDD-hhmmss[.N]`
+- `<gemini_home>/sessions/...`
 
 ## Registry Compatibility
 
@@ -43,7 +43,7 @@ See [docs/schema-migration.md](./schema-migration.md) for versioning policy and 
 
 ## Account Identity
 
-`codex-auth` separates the user identity from the ChatGPT workspace/account context.
+`gemini-auth` separates the user identity from the ChatGPT workspace/account context.
 
 - `tokens.account_id` is stored as `chatgpt_account_id` and is used for API calls.
 - `chatgpt_user_id` is read from JWT auth claims, falling back to `user_id`.
@@ -70,7 +70,7 @@ Foreground account commands sync `auth.json` before their main work when the cur
 
 The sync flow is:
 
-1. Read `~/.codex/auth.json`.
+1. Read `~/.gemini/auth.json`.
 2. Parse email, plan, auth mode, `chatgpt_user_id`, and `chatgpt_account_id`.
 3. Match by `record_key`.
 4. Update the matching account and active key, or create a new account record when no match exists.
@@ -82,16 +82,16 @@ The empty-registry auto-import path still requires a parseable auth file. Once a
 
 - `auth.json` backups are created only when contents change.
 - `registry.json` backups are created only when contents change.
-- Backups are stored under `~/.codex/accounts/` with local-time names.
+- Backups are stored under `~/.gemini/accounts/` with local-time names.
 - Same-second collisions get a `.N` suffix.
 - The newest five managed backups are retained.
-- `codex-auth clean` is whitelist-based for the current schema and affects only `~/.codex/accounts/`.
+- `gemini-auth clean` is whitelist-based for the current schema and affects only `~/.gemini/accounts/`.
 
 Command behavior for cleanup lives in [docs/commands/clean.md](./commands/clean.md).
 
 ## Local Usage Data
 
-When API usage refresh is disabled, local usage refresh reads Codex rollout files under `~/.codex/sessions/**/rollout-*.jsonl`.
+When API usage refresh is disabled, local usage refresh reads Gemini rollout files under `~/.gemini/sessions/**/rollout-*.jsonl`.
 
 - The newest rollout file by `mtime` is scanned.
 - The scanner looks for `type:"event_msg"` and `payload.type:"token_count"`.

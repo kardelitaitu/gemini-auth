@@ -802,7 +802,7 @@ test "Scenario: Given gemini login access denied when rendering then plain Engli
     var aw: std.Io.Writer.Allocating = .init(gpa);
     defer aw.deinit();
 
-    try cli.output.writeCodexLoginLaunchFailureHintTo(&aw.writer, "AccessDenied", false);
+    try cli.output.writeGeminiLoginLaunchFailureHintTo(&aw.writer, "AccessDenied", false);
 
     const hint = aw.written();
     try std.testing.expect(std.mem.indexOf(u8, hint, "failed to launch the `gemini login` process.") != null);
@@ -815,11 +815,11 @@ test "Scenario: Given gemini login client missing when rendering then detection 
     var aw: std.Io.Writer.Allocating = .init(gpa);
     defer aw.deinit();
 
-    try cli.output.writeCodexLoginLaunchFailureHintTo(&aw.writer, "FileNotFound", false);
+    try cli.output.writeGeminiLoginLaunchFailureHintTo(&aw.writer, "FileNotFound", false);
 
     const hint = aw.written();
     try std.testing.expect(std.mem.indexOf(u8, hint, "the `gemini` executable was not found in your PATH.") != null);
-    try std.testing.expect(std.mem.indexOf(u8, hint, "Ensure the Codex CLI is installed and available in your environment.") != null);
+    try std.testing.expect(std.mem.indexOf(u8, hint, "Ensure the Gemini CLI is installed and available in your environment.") != null);
 }
 
 test "Scenario: Given login help when rendering then device auth usage is included" {

@@ -322,20 +322,20 @@ pub fn printSwitchedAccount(
     try out.flush();
 }
 
-fn writeCodexLoginLaunchFailureHint(err_name: []const u8, use_color: bool) !void {
+fn writeGeminiLoginLaunchFailureHint(err_name: []const u8, use_color: bool) !void {
     var buffer: [512]u8 = undefined;
     var writer = std.Io.File.stderr().writer(app_runtime.io(), &buffer);
     const out = &writer.interface;
-    try writeCodexLoginLaunchFailureHintTo(out, err_name, use_color);
+    try writeGeminiLoginLaunchFailureHintTo(out, err_name, use_color);
     try out.flush();
 }
 
-pub fn writeCodexLoginLaunchFailureHintTo(out: *std.Io.Writer, err_name: []const u8, use_color: bool) !void {
+pub fn writeGeminiLoginLaunchFailureHintTo(out: *std.Io.Writer, err_name: []const u8, use_color: bool) !void {
     try writeErrorPrefixTo(out, use_color);
     if (std.mem.eql(u8, err_name, "FileNotFound")) {
         try out.writeAll(" the `gemini` executable was not found in your PATH.\n\n");
         try writeHintPrefixTo(out, use_color);
-        try out.writeAll(" Ensure the Codex CLI is installed and available in your environment.\n");
+        try out.writeAll(" Ensure the Gemini CLI is installed and available in your environment.\n");
         try out.writeAll("      Then run `gemini login` manually and retry your command.\n");
     } else {
         try out.writeAll(" failed to launch the `gemini login` process.\n\n");

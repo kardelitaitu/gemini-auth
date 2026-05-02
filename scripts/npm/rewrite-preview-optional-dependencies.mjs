@@ -92,7 +92,7 @@ for (const depName of Object.keys(optionalDependencies)) {
 }
 
 rootPackage.optionalDependencies = rewrittenOptionalDependencies;
-rootPackage.codexAuthPreviewLabel = `pr-${options.prNumber} ${formattedSha}`;
+rootPackage.geminiAuthPreviewLabel = `pr-${options.prNumber} ${formattedSha}`;
 writeJson(packageJsonPath, rootPackage);
 
 console.log(`Rewrote preview optionalDependencies in ${packageJsonPath}`);

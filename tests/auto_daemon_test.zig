@@ -1,10 +1,10 @@
 const std = @import("std");
-const app_runtime = @import("codex_auth").core.runtime;
-const fs = @import("codex_auth").core.compat_fs;
-const account_api = @import("codex_auth").api.account;
-const auto = @import("codex_auth").auto;
-const registry = @import("codex_auth").registry;
-const usage_api = @import("codex_auth").api.usage;
+const app_runtime = @import("gemini_auth").core.runtime;
+const fs = @import("gemini_auth").core.compat_fs;
+const account_api = @import("gemini_auth").api.account;
+const auto = @import("gemini_auth").auto;
+const registry = @import("gemini_auth").registry;
+const usage_api = @import("gemini_auth").api.usage;
 const fixtures = @import("support/fixtures.zig");
 
 const rollout_line = "{" ++
@@ -22,7 +22,7 @@ const empty_rate_limits_rollout_line = "{" ++
 var daemon_api_fetch_count: usize = 0;
 var candidate_api_fetch_count: usize = 0;
 var daemon_account_name_fetch_count: usize = 0;
-var daemon_account_name_fetch_registry_rewrite_codex_home: ?[]const u8 = null;
+var daemon_account_name_fetch_registry_rewrite_gemini_home: ?[]const u8 = null;
 var candidate_high_auth_path: ?[]const u8 = null;
 var candidate_low_auth_path: ?[]const u8 = null;
 var candidate_reject_auth_path: ?[]const u8 = null;
@@ -89,13 +89,13 @@ fn authJsonWithIds(
 
 fn writeActiveAuthWithIds(
     allocator: std.mem.Allocator,
-    codex_home: []const u8,
+    gemini_home: []const u8,
     email: []const u8,
     plan: []const u8,
     chatgpt_user_id: []const u8,
     chatgpt_account_id: []const u8,
 ) !void {
-    const auth_path = try registry.activeAuthPath(allocator, codex_home);
+    const auth_path = try registry.activeAuthPath(allocator, gemini_home);
     defer allocator.free(auth_path);
 
     const auth_json = try authJsonWithIds(allocator, email, plan, chatgpt_user_id, chatgpt_account_id);
@@ -105,7 +105,7 @@ fn writeActiveAuthWithIds(
 
 fn writeAccountSnapshotWithIds(
     allocator: std.mem.Allocator,
-    codex_home: []const u8,
+    gemini_home: []const u8,
     email: []const u8,
     plan: []const u8,
     chatgpt_user_id: []const u8,
@@ -114,7 +114,7 @@ fn writeAccountSnapshotWithIds(
     const account_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ chatgpt_user_id, chatgpt_account_id });
     defer allocator.free(account_key);
 
-    const auth_path = try registry.accountAuthPath(allocator, codex_home, account_key);
+    const auth_path = try registry.accountAuthPath(allocator, gemini_home, account_key);
     defer allocator.free(auth_path);
 
     const auth_json = try authJsonWithIds(allocator, email, plan, chatgpt_user_id, chatgpt_account_id);
@@ -124,7 +124,7 @@ fn writeAccountSnapshotWithIds(
 
 fn resetDaemonAccountNameFetcher() void {
     daemon_account_name_fetch_count = 0;
-    daemon_account_name_fetch_registry_rewrite_codex_home = null;
+    daemon_account_name_fetch_registry_rewrite_gemini_home = null;
 }
 
 fn buildGroupedAccountNamesFetchResult(allocator: std.mem.Allocator) !account_api.FetchResult {
@@ -169,11 +169,11 @@ fn fetchGroupedAccountNamesAfterConcurrentUsageDisable(
     _ = account_id;
     daemon_account_name_fetch_count += 1;
 
-    const codex_home = daemon_account_name_fetch_registry_rewrite_codex_home orelse return error.TestMissingCodexHome;
-    var latest = try registry.loadRegistry(allocator, codex_home);
+    const gemini_home = daemon_account_name_fetch_registry_rewrite_gemini_home orelse return error.TestMissingGeminiHome;
+    var latest = try registry.loadRegistry(allocator, gemini_home);
     defer latest.deinit(allocator);
     latest.api.usage = false;
-    try registry.saveRegistry(allocator, codex_home, &latest);
+    try registry.saveRegistry(allocator, gemini_home, &latest);
 
     return buildGroupedAccountNamesFetchResult(allocator);
 }
@@ -183,9 +183,9 @@ test "Scenario: Given auto-switch daemon with missing grouped account names when
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
-    try registry.ensureAccountsDir(gpa, codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
+    try registry.ensureAccountsDir(gpa, gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
@@ -194,20 +194,20 @@ test "Scenario: Given auto-switch daemon with missing grouped account names when
     try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .team);
     try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .team);
     try registry.setActiveAccountKey(gpa, &reg, reg.accounts.items[0].account_key);
-    try registry.saveRegistry(gpa, codex_home, &reg);
-    try writeActiveAuthWithIds(gpa, codex_home, "group@example.com", "team", daemon_grouped_user_id, daemon_primary_account_id);
+    try registry.saveRegistry(gpa, gemini_home, &reg);
+    try writeActiveAuthWithIds(gpa, gemini_home, "group@example.com", "team", daemon_grouped_user_id, daemon_primary_account_id);
 
     resetDaemonAccountNameFetcher();
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
     try std.testing.expect(try auto.daemonCycleWithAccountNameFetcherForTest(
         gpa,
-        codex_home,
+        gemini_home,
         &refresh_state,
         fetchGroupedAccountNames,
     ));
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), daemon_account_name_fetch_count);
     try std.testing.expectEqualStrings("Primary Workspace", loaded.accounts.items[0].account_name.?);
@@ -215,7 +215,7 @@ test "Scenario: Given auto-switch daemon with missing grouped account names when
 
     try std.testing.expect(try auto.daemonCycleWithAccountNameFetcherForTest(
         gpa,
-        codex_home,
+        gemini_home,
         &refresh_state,
         fetchGroupedAccountNames,
     ));
@@ -227,9 +227,9 @@ test "Scenario: Given auto-switch disabled when account names are missing then t
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
-    try registry.ensureAccountsDir(gpa, codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
+    try registry.ensureAccountsDir(gpa, gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
@@ -243,7 +243,7 @@ test "Scenario: Given auto-switch disabled when account names are missing then t
     defer refresh_state.deinit(gpa);
     try std.testing.expect(!(try auto.refreshActiveAccountNamesForDaemonWithFetcher(
         gpa,
-        codex_home,
+        gemini_home,
         &reg,
         &refresh_state,
         fetchGroupedAccountNames,
@@ -256,9 +256,9 @@ test "Scenario: Given daemon account-name refresh when registry changes during f
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
-    try registry.ensureAccountsDir(gpa, codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
+    try registry.ensureAccountsDir(gpa, gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
@@ -268,25 +268,25 @@ test "Scenario: Given daemon account-name refresh when registry changes during f
     try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .team);
     try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .team);
     try registry.setActiveAccountKey(gpa, &reg, reg.accounts.items[0].account_key);
-    try registry.saveRegistry(gpa, codex_home, &reg);
-    try writeActiveAuthWithIds(gpa, codex_home, "group@example.com", "team", daemon_grouped_user_id, daemon_primary_account_id);
+    try registry.saveRegistry(gpa, gemini_home, &reg);
+    try writeActiveAuthWithIds(gpa, gemini_home, "group@example.com", "team", daemon_grouped_user_id, daemon_primary_account_id);
 
-    const rewrite_codex_home = try gpa.dupe(u8, codex_home);
-    defer gpa.free(rewrite_codex_home);
+    const rewrite_gemini_home = try gpa.dupe(u8, gemini_home);
+    defer gpa.free(rewrite_gemini_home);
     resetDaemonAccountNameFetcher();
-    daemon_account_name_fetch_registry_rewrite_codex_home = rewrite_codex_home;
-    defer daemon_account_name_fetch_registry_rewrite_codex_home = null;
+    daemon_account_name_fetch_registry_rewrite_gemini_home = rewrite_gemini_home;
+    defer daemon_account_name_fetch_registry_rewrite_gemini_home = null;
 
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
     try std.testing.expect(try auto.daemonCycleWithAccountNameFetcherForTest(
         gpa,
-        codex_home,
+        gemini_home,
         &refresh_state,
         fetchGroupedAccountNamesAfterConcurrentUsageDisable,
     ));
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), daemon_account_name_fetch_count);
     try std.testing.expect(!loaded.api.usage);
@@ -299,9 +299,9 @@ test "Scenario: Given auto-switch daemon with only another user missing grouped 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
-    try registry.ensureAccountsDir(gpa, codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
+    try registry.ensureAccountsDir(gpa, gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
@@ -315,21 +315,21 @@ test "Scenario: Given auto-switch daemon with only another user missing grouped 
     try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .team);
     try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .team);
     try registry.setActiveAccountKey(gpa, &reg, reg.accounts.items[0].account_key);
-    try registry.saveRegistry(gpa, codex_home, &reg);
-    try writeActiveAuthWithIds(gpa, codex_home, "active@example.com", "team", "user-active", "acct-active-a");
-    try writeAccountSnapshotWithIds(gpa, codex_home, "group@example.com", "team", daemon_grouped_user_id, daemon_primary_account_id);
+    try registry.saveRegistry(gpa, gemini_home, &reg);
+    try writeActiveAuthWithIds(gpa, gemini_home, "active@example.com", "team", "user-active", "acct-active-a");
+    try writeAccountSnapshotWithIds(gpa, gemini_home, "group@example.com", "team", daemon_grouped_user_id, daemon_primary_account_id);
 
     resetDaemonAccountNameFetcher();
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
     try std.testing.expect(try auto.daemonCycleWithAccountNameFetcherForTest(
         gpa,
-        codex_home,
+        gemini_home,
         &refresh_state,
         fetchGroupedAccountNames,
     ));
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), daemon_account_name_fetch_count);
     try std.testing.expectEqualStrings("Primary Workspace", loaded.accounts.items[2].account_name.?);
@@ -341,9 +341,9 @@ test "Scenario: Given auto-switch daemon with grouped team names and only a stor
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
-    try registry.ensureAccountsDir(gpa, codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
+    try registry.ensureAccountsDir(gpa, gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
@@ -359,21 +359,21 @@ test "Scenario: Given auto-switch daemon with grouped team names and only a stor
     reg.accounts.items[3].account_name = try gpa.dupe(u8, "Old Backup Workspace");
     try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, "acct-plus", "group@example.com", .plus);
     try registry.setActiveAccountKey(gpa, &reg, reg.accounts.items[0].account_key);
-    try registry.saveRegistry(gpa, codex_home, &reg);
-    try writeActiveAuthWithIds(gpa, codex_home, "active@example.com", "team", "user-active", "acct-active-a");
-    try writeAccountSnapshotWithIds(gpa, codex_home, "group@example.com", "plus", daemon_grouped_user_id, "acct-plus");
+    try registry.saveRegistry(gpa, gemini_home, &reg);
+    try writeActiveAuthWithIds(gpa, gemini_home, "active@example.com", "team", "user-active", "acct-active-a");
+    try writeAccountSnapshotWithIds(gpa, gemini_home, "group@example.com", "plus", daemon_grouped_user_id, "acct-plus");
 
     resetDaemonAccountNameFetcher();
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
     try std.testing.expect(try auto.daemonCycleWithAccountNameFetcherForTest(
         gpa,
-        codex_home,
+        gemini_home,
         &refresh_state,
         fetchGroupedAccountNames,
     ));
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), daemon_account_name_fetch_count);
     try std.testing.expectEqualStrings("Primary Workspace", loaded.accounts.items[2].account_name.?);
@@ -486,23 +486,23 @@ fn fetchCandidateUsageMissingAuth(_: std.mem.Allocator, _: []const u8) !usage_ap
     return .{ .snapshot = null, .status_code = null, .missing_auth = true };
 }
 
-fn partialServiceArtifactPath(allocator: std.mem.Allocator, codex_home: []const u8) ![]u8 {
-    return try fs.path.join(allocator, &[_][]const u8{ codex_home, "accounts", "partial-service-artifact" });
+fn partialServiceArtifactPath(allocator: std.mem.Allocator, gemini_home: []const u8) ![]u8 {
+    return try fs.path.join(allocator, &[_][]const u8{ gemini_home, "accounts", "partial-service-artifact" });
 }
 
 fn installServiceWithPartialArtifact(
     allocator: std.mem.Allocator,
-    codex_home: []const u8,
+    gemini_home: []const u8,
     _: []const u8,
 ) !void {
-    const artifact_path = try partialServiceArtifactPath(allocator, codex_home);
+    const artifact_path = try partialServiceArtifactPath(allocator, gemini_home);
     defer allocator.free(artifact_path);
     try fs.cwd().writeFile(.{ .sub_path = artifact_path, .data = "partial" });
     return error.TestInstallFailed;
 }
 
-fn uninstallPartialServiceArtifact(allocator: std.mem.Allocator, codex_home: []const u8) !void {
-    const artifact_path = try partialServiceArtifactPath(allocator, codex_home);
+fn uninstallPartialServiceArtifact(allocator: std.mem.Allocator, gemini_home: []const u8) !void {
+    const artifact_path = try partialServiceArtifactPath(allocator, gemini_home);
     defer allocator.free(artifact_path);
     fs.cwd().deleteFile(artifact_path) catch |err| switch (err) {
         error.FileNotFound => {},
@@ -735,8 +735,8 @@ test "Scenario: Given better candidate when auto switch runs then auth and activ
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -760,20 +760,20 @@ test "Scenario: Given better candidate when auto switch runs then auth and activ
     const fresh_auth = try fixtures.authJsonWithEmailPlan(gpa, "fresh@example.com", "pro");
     defer gpa.free(fresh_auth);
 
-    const low_path = try registry.accountAuthPath(gpa, codex_home, low_account_id);
+    const low_path = try registry.accountAuthPath(gpa, gemini_home, low_account_id);
     defer gpa.free(low_path);
     const fresh_account_id = try fixtures.accountKeyForEmailAlloc(gpa, "fresh@example.com");
     defer gpa.free(fresh_account_id);
-    const fresh_path = try registry.accountAuthPath(gpa, codex_home, fresh_account_id);
+    const fresh_path = try registry.accountAuthPath(gpa, gemini_home, fresh_account_id);
     defer gpa.free(fresh_path);
-    const active_path = try registry.activeAuthPath(gpa, codex_home);
+    const active_path = try registry.activeAuthPath(gpa, gemini_home);
     defer gpa.free(active_path);
 
     try fs.cwd().writeFile(.{ .sub_path = low_path, .data = low_auth });
     try fs.cwd().writeFile(.{ .sub_path = fresh_path, .data = fresh_auth });
     try fs.cwd().writeFile(.{ .sub_path = active_path, .data = low_auth });
 
-    try std.testing.expect(try auto.maybeAutoSwitch(gpa, codex_home, &reg));
+    try std.testing.expect(try auto.maybeAutoSwitch(gpa, gemini_home, &reg));
     try std.testing.expect(reg.active_account_key != null);
     try std.testing.expect(std.mem.eql(u8, reg.active_account_key.?, fresh_account_id));
 
@@ -787,8 +787,8 @@ test "Scenario: Given API mode and unknown candidate usage when auto switching t
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -814,11 +814,11 @@ test "Scenario: Given API mode and unknown candidate usage when auto switching t
     defer gpa.free(low_auth);
     const fresh_auth = try fixtures.authJsonWithEmailPlan(gpa, "fresh@example.com", "pro");
     defer gpa.free(fresh_auth);
-    const low_path = try registry.accountAuthPath(gpa, codex_home, low_account_id);
+    const low_path = try registry.accountAuthPath(gpa, gemini_home, low_account_id);
     defer gpa.free(low_path);
-    const fresh_path = try registry.accountAuthPath(gpa, codex_home, fresh_account_id);
+    const fresh_path = try registry.accountAuthPath(gpa, gemini_home, fresh_account_id);
     defer gpa.free(fresh_path);
-    const active_path = try registry.activeAuthPath(gpa, codex_home);
+    const active_path = try registry.activeAuthPath(gpa, gemini_home);
     defer gpa.free(active_path);
     try fs.cwd().writeFile(.{ .sub_path = low_path, .data = low_auth });
     try fs.cwd().writeFile(.{ .sub_path = fresh_path, .data = fresh_auth });
@@ -830,7 +830,7 @@ test "Scenario: Given API mode and unknown candidate usage when auto switching t
         candidate_high_auth_path = null;
     }
 
-    const attempt = try auto.maybeAutoSwitchWithUsageFetcher(gpa, codex_home, &reg, fetchCandidateUsageByAuthPath);
+    const attempt = try auto.maybeAutoSwitchWithUsageFetcher(gpa, gemini_home, &reg, fetchCandidateUsageByAuthPath);
     try std.testing.expect(attempt.refreshed_candidates);
     try std.testing.expect(attempt.switched);
     try std.testing.expect(reg.active_account_key != null);
@@ -842,8 +842,8 @@ test "Scenario: Given API mode and poor refreshed candidate when auto switching 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -867,7 +867,7 @@ test "Scenario: Given API mode and poor refreshed candidate when auto switching 
     defer gpa.free(fresh_account_id);
     const fresh_auth = try fixtures.authJsonWithEmailPlan(gpa, "fresh@example.com", "pro");
     defer gpa.free(fresh_auth);
-    const fresh_path = try registry.accountAuthPath(gpa, codex_home, fresh_account_id);
+    const fresh_path = try registry.accountAuthPath(gpa, gemini_home, fresh_account_id);
     defer gpa.free(fresh_path);
     try fs.cwd().writeFile(.{ .sub_path = fresh_path, .data = fresh_auth });
 
@@ -877,7 +877,7 @@ test "Scenario: Given API mode and poor refreshed candidate when auto switching 
         candidate_low_auth_path = null;
     }
 
-    const attempt = try auto.maybeAutoSwitchWithUsageFetcher(gpa, codex_home, &reg, fetchCandidateUsageByAuthPath);
+    const attempt = try auto.maybeAutoSwitchWithUsageFetcher(gpa, gemini_home, &reg, fetchCandidateUsageByAuthPath);
     try std.testing.expect(attempt.refreshed_candidates);
     try std.testing.expect(!attempt.switched);
     try std.testing.expect(reg.active_account_key != null);
@@ -889,8 +889,8 @@ test "Scenario: Given repeated daemon candidate refresh attempts within cooldown
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -914,7 +914,7 @@ test "Scenario: Given repeated daemon candidate refresh attempts within cooldown
     defer gpa.free(fresh_account_id);
     const fresh_auth = try fixtures.authJsonWithEmailPlan(gpa, "fresh@example.com", "pro");
     defer gpa.free(fresh_auth);
-    const fresh_path = try registry.accountAuthPath(gpa, codex_home, fresh_account_id);
+    const fresh_path = try registry.accountAuthPath(gpa, gemini_home, fresh_account_id);
     defer gpa.free(fresh_path);
     try fs.cwd().writeFile(.{ .sub_path = fresh_path, .data = fresh_auth });
 
@@ -928,8 +928,8 @@ test "Scenario: Given repeated daemon candidate refresh attempts within cooldown
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    const first_attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, codex_home, &reg, &refresh_state, fetchCountingCandidateUsageByAuthPathDetailed);
-    const second_attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, codex_home, &reg, &refresh_state, fetchCountingCandidateUsageByAuthPathDetailed);
+    const first_attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCountingCandidateUsageByAuthPathDetailed);
+    const second_attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCountingCandidateUsageByAuthPathDetailed);
 
     try std.testing.expect(first_attempt.refreshed_candidates);
     try std.testing.expect(!first_attempt.switched);
@@ -943,8 +943,8 @@ test "Scenario: Given switch-time candidate validation returns non-200 then that
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -969,7 +969,7 @@ test "Scenario: Given switch-time candidate validation returns non-200 then that
 
     const candidate_auth = try fixtures.authJsonWithEmailPlan(gpa, "candidate@example.com", "pro");
     defer gpa.free(candidate_auth);
-    const candidate_path = try registry.accountAuthPath(gpa, codex_home, candidate_account_id);
+    const candidate_path = try registry.accountAuthPath(gpa, gemini_home, candidate_account_id);
     defer gpa.free(candidate_path);
     try fs.cwd().writeFile(.{ .sub_path = candidate_path, .data = candidate_auth });
 
@@ -977,7 +977,7 @@ test "Scenario: Given switch-time candidate validation returns non-200 then that
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, codex_home, &reg, &refresh_state, fetchCandidateUsageHttp403);
+    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCandidateUsageHttp403);
     try std.testing.expect(attempt.refreshed_candidates);
     try std.testing.expect(!attempt.switched);
     try std.testing.expect(reg.active_account_key != null);
@@ -990,8 +990,8 @@ test "Scenario: Given switch-time candidate validation returns 200 without windo
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1016,7 +1016,7 @@ test "Scenario: Given switch-time candidate validation returns 200 without windo
 
     const candidate_auth = try fixtures.authJsonWithEmailPlan(gpa, "candidate@example.com", "pro");
     defer gpa.free(candidate_auth);
-    const candidate_path = try registry.accountAuthPath(gpa, codex_home, candidate_account_id);
+    const candidate_path = try registry.accountAuthPath(gpa, gemini_home, candidate_account_id);
     defer gpa.free(candidate_path);
     try fs.cwd().writeFile(.{ .sub_path = candidate_path, .data = candidate_auth });
 
@@ -1024,7 +1024,7 @@ test "Scenario: Given switch-time candidate validation returns 200 without windo
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, codex_home, &reg, &refresh_state, fetchCandidateUsageNoWindow200);
+    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCandidateUsageNoWindow200);
     try std.testing.expect(attempt.refreshed_candidates);
     try std.testing.expect(!attempt.switched);
     try std.testing.expect(reg.active_account_key != null);
@@ -1037,8 +1037,8 @@ test "Scenario: Given a candidate is rejected by API validation then it stays re
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1063,7 +1063,7 @@ test "Scenario: Given a candidate is rejected by API validation then it stays re
 
     const candidate_auth = try fixtures.authJsonWithEmailPlan(gpa, "candidate@example.com", "pro");
     defer gpa.free(candidate_auth);
-    const candidate_path = try registry.accountAuthPath(gpa, codex_home, candidate_account_id);
+    const candidate_path = try registry.accountAuthPath(gpa, gemini_home, candidate_account_id);
     defer gpa.free(candidate_path);
     try fs.cwd().writeFile(.{ .sub_path = candidate_path, .data = candidate_auth });
 
@@ -1071,8 +1071,8 @@ test "Scenario: Given a candidate is rejected by API validation then it stays re
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    const first_attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, codex_home, &reg, &refresh_state, fetchCandidateUsageHttp403);
-    const second_attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, codex_home, &reg, &refresh_state, fetchCandidateUsageHttp403);
+    const first_attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCandidateUsageHttp403);
+    const second_attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCandidateUsageHttp403);
 
     try std.testing.expect(first_attempt.refreshed_candidates);
     try std.testing.expect(!first_attempt.switched);
@@ -1088,8 +1088,8 @@ test "Scenario: Given switch-time candidate validation reports missing auth then
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1114,7 +1114,7 @@ test "Scenario: Given switch-time candidate validation reports missing auth then
 
     const candidate_auth = try fixtures.authJsonWithEmailPlan(gpa, "candidate@example.com", "pro");
     defer gpa.free(candidate_auth);
-    const candidate_path = try registry.accountAuthPath(gpa, codex_home, candidate_account_id);
+    const candidate_path = try registry.accountAuthPath(gpa, gemini_home, candidate_account_id);
     defer gpa.free(candidate_path);
     try fs.cwd().writeFile(.{ .sub_path = candidate_path, .data = candidate_auth });
 
@@ -1122,7 +1122,7 @@ test "Scenario: Given switch-time candidate validation reports missing auth then
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, codex_home, &reg, &refresh_state, fetchCandidateUsageMissingAuth);
+    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCandidateUsageMissingAuth);
     try std.testing.expect(attempt.refreshed_candidates);
     try std.testing.expect(!attempt.switched);
     try std.testing.expect(reg.active_account_key != null);
@@ -1135,8 +1135,8 @@ test "Scenario: Given switch-time candidate validation gets no response then the
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1161,7 +1161,7 @@ test "Scenario: Given switch-time candidate validation gets no response then the
 
     const candidate_auth = try fixtures.authJsonWithEmailPlan(gpa, "candidate@example.com", "pro");
     defer gpa.free(candidate_auth);
-    const candidate_path = try registry.accountAuthPath(gpa, codex_home, candidate_account_id);
+    const candidate_path = try registry.accountAuthPath(gpa, gemini_home, candidate_account_id);
     defer gpa.free(candidate_path);
     try fs.cwd().writeFile(.{ .sub_path = candidate_path, .data = candidate_auth });
 
@@ -1169,7 +1169,7 @@ test "Scenario: Given switch-time candidate validation gets no response then the
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, codex_home, &reg, &refresh_state, fetchCandidateUsageUnavailable);
+    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCandidateUsageUnavailable);
     try std.testing.expect(attempt.refreshed_candidates);
     try std.testing.expect(attempt.switched);
     try std.testing.expect(reg.active_account_key != null);
@@ -1182,8 +1182,8 @@ test "Scenario: Given daemon api mode and an api-key candidate when auto switchi
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1208,11 +1208,11 @@ test "Scenario: Given daemon api mode and an api-key candidate when auto switchi
 
     const active_auth = try fixtures.authJsonWithEmailPlan(gpa, "active@example.com", "pro");
     defer gpa.free(active_auth);
-    const active_account_path = try registry.accountAuthPath(gpa, codex_home, active_account_id);
+    const active_account_path = try registry.accountAuthPath(gpa, gemini_home, active_account_id);
     defer gpa.free(active_account_path);
-    const candidate_account_path = try registry.accountAuthPath(gpa, codex_home, candidate_account_id);
+    const candidate_account_path = try registry.accountAuthPath(gpa, gemini_home, candidate_account_id);
     defer gpa.free(candidate_account_path);
-    const active_path = try registry.activeAuthPath(gpa, codex_home);
+    const active_path = try registry.activeAuthPath(gpa, gemini_home);
     defer gpa.free(active_path);
 
     try fs.cwd().writeFile(.{ .sub_path = active_account_path, .data = active_auth });
@@ -1226,7 +1226,7 @@ test "Scenario: Given daemon api mode and an api-key candidate when auto switchi
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, codex_home, &reg, &refresh_state, fetchCountingCandidateUsageByAuthPathDetailed);
+    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCountingCandidateUsageByAuthPathDetailed);
     try std.testing.expect(!attempt.refreshed_candidates);
     try std.testing.expect(attempt.switched);
     try std.testing.expect(reg.active_account_key != null);
@@ -1243,8 +1243,8 @@ test "Scenario: Given healthy active usage when daemon runs then it performs onl
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1268,7 +1268,7 @@ test "Scenario: Given healthy active usage when daemon runs then it performs onl
 
     const candidate_auth = try fixtures.authJsonWithEmailPlan(gpa, "candidate@example.com", "pro");
     defer gpa.free(candidate_auth);
-    const candidate_path = try registry.accountAuthPath(gpa, codex_home, candidate_account_id);
+    const candidate_path = try registry.accountAuthPath(gpa, gemini_home, candidate_account_id);
     defer gpa.free(candidate_path);
     try fs.cwd().writeFile(.{ .sub_path = candidate_path, .data = candidate_auth });
 
@@ -1282,7 +1282,7 @@ test "Scenario: Given healthy active usage when daemon runs then it performs onl
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, codex_home, &reg, &refresh_state, fetchCountingCandidateUsageByAuthPathDetailed);
+    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCountingCandidateUsageByAuthPathDetailed);
     try std.testing.expect(attempt.refreshed_candidates);
     try std.testing.expect(attempt.state_changed);
     try std.testing.expect(!attempt.switched);
@@ -1298,8 +1298,8 @@ test "Scenario: Given stale top candidates when daemon switches then it validate
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1334,13 +1334,13 @@ test "Scenario: Given stale top candidates when daemon switches then it validate
     defer gpa.free(second_auth);
     const third_auth = try fixtures.authJsonWithEmailPlan(gpa, "third@example.com", "pro");
     defer gpa.free(third_auth);
-    const first_path = try registry.accountAuthPath(gpa, codex_home, first_account_id);
+    const first_path = try registry.accountAuthPath(gpa, gemini_home, first_account_id);
     defer gpa.free(first_path);
-    const second_path = try registry.accountAuthPath(gpa, codex_home, second_account_id);
+    const second_path = try registry.accountAuthPath(gpa, gemini_home, second_account_id);
     defer gpa.free(second_path);
-    const third_path = try registry.accountAuthPath(gpa, codex_home, third_account_id);
+    const third_path = try registry.accountAuthPath(gpa, gemini_home, third_account_id);
     defer gpa.free(third_path);
-    const active_path = try registry.activeAuthPath(gpa, codex_home);
+    const active_path = try registry.activeAuthPath(gpa, gemini_home);
     defer gpa.free(active_path);
     try fs.cwd().writeFile(.{ .sub_path = first_path, .data = first_auth });
     try fs.cwd().writeFile(.{ .sub_path = second_path, .data = second_auth });
@@ -1363,7 +1363,7 @@ test "Scenario: Given stale top candidates when daemon switches then it validate
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, codex_home, &reg, &refresh_state, fetchCountingCandidateUsageByAuthPathDetailed);
+    const attempt = try auto.maybeAutoSwitchForDaemonWithUsageFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCountingCandidateUsageByAuthPathDetailed);
     try std.testing.expect(attempt.refreshed_candidates);
     try std.testing.expect(attempt.switched);
     try std.testing.expectEqual(@as(usize, 3), candidate_api_fetch_count);
@@ -1373,15 +1373,15 @@ test "Scenario: Given stale top candidates when daemon switches then it validate
 
 test "Scenario: Given linux service unit when rendering then it keeps a persistent daemon watcher alive" {
     const gpa = std.testing.allocator;
-    const unit = try auto.linuxUnitText(gpa, "/tmp/codex-auth", "/tmp/custom-codex-home");
+    const unit = try auto.linuxUnitText(gpa, "/tmp/gemini-auth", "/tmp/custom-gemini-home");
     defer gpa.free(unit);
 
-    try std.testing.expect(std.mem.indexOf(u8, unit, "Description=codex-auth auto-switch watcher") != null);
+    try std.testing.expect(std.mem.indexOf(u8, unit, "Description=gemini-auth auto-switch watcher") != null);
     try std.testing.expect(std.mem.indexOf(u8, unit, "Type=simple") != null);
     try std.testing.expect(std.mem.indexOf(u8, unit, "Restart=always") != null);
     try std.testing.expect(std.mem.indexOf(u8, unit, "Environment=\"CODEX_AUTH_VERSION=") != null);
-    try std.testing.expect(std.mem.indexOf(u8, unit, "Environment=\"CODEX_HOME=/tmp/custom-codex-home\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, unit, "ExecStart=\"/tmp/codex-auth\" daemon --watch") != null);
+    try std.testing.expect(std.mem.indexOf(u8, unit, "Environment=\"GEMINI_HOME=/tmp/custom-gemini-home\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, unit, "ExecStart=\"/tmp/gemini-auth\" daemon --watch") != null);
     try std.testing.expect(std.mem.indexOf(u8, unit, "[Install]") != null);
     try std.testing.expect(std.mem.indexOf(u8, unit, "WantedBy=default.target") != null);
 }
@@ -1391,63 +1391,63 @@ test "Scenario: Given a zig build run executable path when resolving the managed
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
     try tmp.dir.createDirPath(app_runtime.io(), "zig-out/bin");
-    try tmp.dir.writeFile(app_runtime.io(), .{ .sub_path = "zig-out/bin/codex-auth", .data = "" });
+    try tmp.dir.writeFile(app_runtime.io(), .{ .sub_path = "zig-out/bin/gemini-auth", .data = "" });
 
     const path = try auto.managedServiceSelfExePathFromDir(
         gpa,
         tmp.dir,
-        "/tmp/codex-auth/.zig-cache/o/abcd1234/codex-auth",
+        "/tmp/gemini-auth/.zig-cache/o/abcd1234/gemini-auth",
     );
     defer gpa.free(path);
 
-    const expected = try app_runtime.realPathFileAlloc(gpa, tmp.dir, "zig-out/bin/codex-auth");
+    const expected = try app_runtime.realPathFileAlloc(gpa, tmp.dir, "zig-out/bin/gemini-auth");
     defer gpa.free(expected);
     try std.testing.expectEqualStrings(expected, path);
 }
 
 test "Scenario: Given a stable executable path when resolving the managed service binary then it keeps the original path" {
     const gpa = std.testing.allocator;
-    const path = try auto.managedServiceSelfExePath(gpa, "/usr/local/bin/codex-auth");
+    const path = try auto.managedServiceSelfExePath(gpa, "/usr/local/bin/gemini-auth");
     defer gpa.free(path);
 
-    try std.testing.expectEqualStrings("/usr/local/bin/codex-auth", path);
+    try std.testing.expectEqualStrings("/usr/local/bin/gemini-auth", path);
 }
 
 test "Scenario: Given mac plist when rendering then it includes version metadata and daemon args" {
     const gpa = std.testing.allocator;
-    const plist = try auto.macPlistText(gpa, "/tmp/codex-auth", "/tmp/custom-codex-home");
+    const plist = try auto.macPlistText(gpa, "/tmp/gemini-auth", "/tmp/custom-gemini-home");
     defer gpa.free(plist);
 
     try std.testing.expect(std.mem.indexOf(u8, plist, "<key>CODEX_AUTH_VERSION</key>") != null);
-    try std.testing.expect(std.mem.indexOf(u8, plist, "<key>CODEX_HOME</key>") != null);
-    try std.testing.expect(std.mem.indexOf(u8, plist, "<string>/tmp/custom-codex-home</string>") != null);
+    try std.testing.expect(std.mem.indexOf(u8, plist, "<key>GEMINI_HOME</key>") != null);
+    try std.testing.expect(std.mem.indexOf(u8, plist, "<string>/tmp/custom-gemini-home</string>") != null);
     try std.testing.expect(std.mem.indexOf(u8, plist, "<string>daemon</string>") != null);
 }
 
 test "Scenario: Given windows task action when rendering then it launches the helper directly without cmd" {
     const gpa = std.testing.allocator;
-    const action = try auto.windowsTaskAction(gpa, "C:\\Program Files\\codex-auth\\codex-auth-auto.exe", "C:\\Users\\demo\\Codex Home\\");
+    const action = try auto.windowsTaskAction(gpa, "C:\\Program Files\\gemini-auth\\gemini-auth-auto.exe", "C:\\Users\\demo\\Gemini Home\\");
     defer gpa.free(action);
 
     try std.testing.expect(std.mem.indexOf(u8, action, "cmd.exe /D /C") == null);
-    try std.testing.expect(std.mem.indexOf(u8, action, "\"C:\\Program Files\\codex-auth\\codex-auth-auto.exe\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, action, "\"C:\\Program Files\\gemini-auth\\gemini-auth-auto.exe\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, action, "--service-version ") != null);
-    try std.testing.expect(std.mem.indexOf(u8, action, "--codex-home \"C:\\Users\\demo\\Codex Home\\\\\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, action, "--gemini-home \"C:\\Users\\demo\\Gemini Home\\\\\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, action, "powershell.exe") == null);
     try std.testing.expect(action.len < 262);
 }
 
 test "Scenario: Given windows task register script when rendering then it configures restart-on-failure" {
     const gpa = std.testing.allocator;
-    const script = try auto.windowsRegisterTaskScript(gpa, "C:\\Program Files\\codex-auth\\codex-auth-auto.exe", "C:\\Users\\demo\\Codex Home\\");
+    const script = try auto.windowsRegisterTaskScript(gpa, "C:\\Program Files\\gemini-auth\\gemini-auth-auto.exe", "C:\\Users\\demo\\Gemini Home\\");
     defer gpa.free(script);
 
     try std.testing.expect(std.mem.indexOf(u8, script, "New-ScheduledTaskAction") != null);
-    try std.testing.expect(std.mem.indexOf(u8, script, "--codex-home \"C:\\Users\\demo\\Codex Home\\\\\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, script, "--gemini-home \"C:\\Users\\demo\\Gemini Home\\\\\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, script, "New-ScheduledTaskTrigger -AtLogOn") != null);
     try std.testing.expect(std.mem.indexOf(u8, script, "New-ScheduledTaskSettingsSet -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)") != null);
     try std.testing.expect(std.mem.indexOf(u8, script, "-ExecutionTimeLimit (New-TimeSpan -Seconds 0)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, script, "Register-ScheduledTask -TaskName 'CodexAuthAutoSwitch'") != null);
+    try std.testing.expect(std.mem.indexOf(u8, script, "Register-ScheduledTask -TaskName 'GeminiAuthAutoSwitch'") != null);
 }
 
 test "Scenario: Given windows task match script when rendering then it validates both action and the logon trigger" {
@@ -1455,8 +1455,8 @@ test "Scenario: Given windows task match script when rendering then it validates
     const script = try auto.windowsTaskMatchScript(gpa);
     defer gpa.free(script);
 
-    try std.testing.expect(std.mem.indexOf(u8, script, "Get-ScheduledTask -TaskName 'CodexAuthAutoSwitch' -ErrorAction SilentlyContinue") != null);
-    try std.testing.expect(std.mem.indexOf(u8, script, "Export-ScheduledTask -TaskName 'CodexAuthAutoSwitch'") != null);
+    try std.testing.expect(std.mem.indexOf(u8, script, "Get-ScheduledTask -TaskName 'GeminiAuthAutoSwitch' -ErrorAction SilentlyContinue") != null);
+    try std.testing.expect(std.mem.indexOf(u8, script, "Export-ScheduledTask -TaskName 'GeminiAuthAutoSwitch'") != null);
     try std.testing.expect(std.mem.indexOf(u8, script, "RestartOnFailure") != null);
     try std.testing.expect(std.mem.indexOf(u8, script, "ExecutionTimeLimit") != null);
     try std.testing.expect(std.mem.indexOf(u8, script, "LocalName") != null);
@@ -1482,31 +1482,31 @@ test "Scenario: Given partial service install failure when enabling auto-switch 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
-    try registry.ensureAccountsDir(gpa, codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
+    try registry.ensureAccountsDir(gpa, gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
-    try registry.saveRegistry(gpa, codex_home, &reg);
+    try registry.saveRegistry(gpa, gemini_home, &reg);
 
     try std.testing.expectError(
         error.TestInstallFailed,
         auto.enableWithServiceHooksAndPreflight(
             gpa,
-            codex_home,
-            "/tmp/codex-auth",
+            gemini_home,
+            "/tmp/gemini-auth",
             installServiceWithPartialArtifact,
             uninstallPartialServiceArtifact,
             preflightSuccess,
         ),
     );
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(!loaded.auto_switch.enabled);
 
-    const artifact_path = try partialServiceArtifactPath(gpa, codex_home);
+    const artifact_path = try partialServiceArtifactPath(gpa, gemini_home);
     defer gpa.free(artifact_path);
     try std.testing.expectError(error.FileNotFound, fs.cwd().access(artifact_path, .{}));
 }
@@ -1516,31 +1516,31 @@ test "Scenario: Given preflight failure when enabling auto-switch then registry 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
-    try registry.ensureAccountsDir(gpa, codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
+    try registry.ensureAccountsDir(gpa, gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
-    try registry.saveRegistry(gpa, codex_home, &reg);
+    try registry.saveRegistry(gpa, gemini_home, &reg);
 
     try std.testing.expectError(
         error.TestPreflightFailed,
         auto.enableWithServiceHooksAndPreflight(
             gpa,
-            codex_home,
-            "/tmp/codex-auth",
+            gemini_home,
+            "/tmp/gemini-auth",
             installServiceWithPartialArtifact,
             uninstallPartialServiceArtifact,
             preflightFailure,
         ),
     );
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(!loaded.auto_switch.enabled);
 
-    const artifact_path = try partialServiceArtifactPath(gpa, codex_home);
+    const artifact_path = try partialServiceArtifactPath(gpa, gemini_home);
     defer gpa.free(artifact_path);
     try std.testing.expectError(error.FileNotFound, fs.cwd().access(artifact_path, .{}));
 }
@@ -1573,8 +1573,8 @@ test "Scenario: Given an absolute managed unit path when deleting it then the fi
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    try tmp.dir.writeFile(.{ .sub_path = "codex-auth-autoswitch.timer", .data = "[Timer]\n" });
-    const timer_path = try tmp.dir.realpathAlloc(gpa, "codex-auth-autoswitch.timer");
+    try tmp.dir.writeFile(.{ .sub_path = "gemini-auth-autoswitch.timer", .data = "[Timer]\n" });
+    const timer_path = try tmp.dir.realpathAlloc(gpa, "gemini-auth-autoswitch.timer");
     defer gpa.free(timer_path);
 
     auto.deleteAbsoluteFileIfExists(timer_path);
@@ -1587,9 +1587,9 @@ test "Scenario: Given windows delete task script when rendering then missing tas
     const script = try auto.windowsDeleteTaskScript(gpa);
     defer gpa.free(script);
 
-    try std.testing.expect(std.mem.indexOf(u8, script, "Get-ScheduledTask -TaskName 'CodexAuthAutoSwitch' -ErrorAction SilentlyContinue") != null);
+    try std.testing.expect(std.mem.indexOf(u8, script, "Get-ScheduledTask -TaskName 'GeminiAuthAutoSwitch' -ErrorAction SilentlyContinue") != null);
     try std.testing.expect(std.mem.indexOf(u8, script, "if ($null -eq $task) { exit 0 }") != null);
-    try std.testing.expect(std.mem.indexOf(u8, script, "Unregister-ScheduledTask -TaskName 'CodexAuthAutoSwitch' -Confirm:$false") != null);
+    try std.testing.expect(std.mem.indexOf(u8, script, "Unregister-ScheduledTask -TaskName 'GeminiAuthAutoSwitch' -Confirm:$false") != null);
 }
 
 test "Scenario: Given windows task state output when parsing then localized text is no longer required" {
@@ -1645,7 +1645,7 @@ test "Scenario: Given api usage mode when rendering status body then risk warnin
     try std.testing.expect(std.mem.indexOf(u8, output, "account: api") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "live refresh: 45s") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "Warning: Usage refresh is currently using the ChatGPT usage API") == null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "`codex-auth config api disable`") == null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "`gemini-auth config api disable`") == null);
 }
 
 test "Scenario: Given missing sessions dir when refreshing active usage then it is skipped without error" {
@@ -1653,8 +1653,8 @@ test "Scenario: Given missing sessions dir when refreshing active usage then it 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
@@ -1663,7 +1663,7 @@ test "Scenario: Given missing sessions dir when refreshing active usage then it 
     defer gpa.free(active_account_key);
     try registry.setActiveAccountKey(gpa, &reg, active_account_key);
 
-    try std.testing.expect(!(try auto.refreshActiveUsage(gpa, codex_home, &reg)));
+    try std.testing.expect(!(try auto.refreshActiveUsage(gpa, gemini_home, &reg)));
     const idx = fixtures.findAccountIndexByEmail(&reg, "active@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expect(reg.accounts.items[idx].last_usage == null);
 }
@@ -1673,8 +1673,8 @@ test "Scenario: Given local-only mode when refreshing usage then api fetcher is 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
@@ -1683,7 +1683,7 @@ test "Scenario: Given local-only mode when refreshing usage then api fetcher is 
     defer gpa.free(active_account_key);
     try registry.setActiveAccountKey(gpa, &reg, active_account_key);
 
-    try std.testing.expect(!(try auto.refreshActiveUsageWithApiFetcher(gpa, codex_home, &reg, fetchApiError)));
+    try std.testing.expect(!(try auto.refreshActiveUsageWithApiFetcher(gpa, gemini_home, &reg, fetchApiError)));
     const idx = fixtures.findAccountIndexByEmail(&reg, "active@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expect(reg.accounts.items[idx].last_usage == null);
 }
@@ -1693,8 +1693,8 @@ test "Scenario: Given local-only daemon mode and newest null-limits event when r
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1714,7 +1714,7 @@ test "Scenario: Given local-only daemon mode and newest null-limits event when r
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, codex_home, &reg, &refresh_state, fetchApiError));
+    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, gemini_home, &reg, &refresh_state, fetchApiError));
     const idx = fixtures.findAccountIndexByEmail(&reg, "active@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expect(reg.accounts.items[idx].last_usage != null);
     try std.testing.expectEqual(@as(f64, 55.0), reg.accounts.items[idx].last_usage.?.primary.?.used_percent);
@@ -1725,8 +1725,8 @@ test "Scenario: Given api-backed daemon mode and newest null-limits event with e
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1747,7 +1747,7 @@ test "Scenario: Given api-backed daemon mode and newest null-limits event with e
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, codex_home, &reg, &refresh_state, fetchCountingApiError));
+    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCountingApiError));
     try std.testing.expectEqual(@as(usize, 0), daemon_api_fetch_count);
 
     const idx = fixtures.findAccountIndexByEmail(&reg, "active@example.com") orelse return error.TestExpectedEqual;
@@ -1762,8 +1762,8 @@ test "Scenario: Given api usage for active account when refreshing usage then it
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
@@ -1773,7 +1773,7 @@ test "Scenario: Given api usage for active account when refreshing usage then it
     defer gpa.free(active_account_key);
     try registry.setActiveAccountKey(gpa, &reg, active_account_key);
 
-    try std.testing.expect(try auto.refreshActiveUsageWithApiFetcher(gpa, codex_home, &reg, fetchApiSnapshot));
+    try std.testing.expect(try auto.refreshActiveUsageWithApiFetcher(gpa, gemini_home, &reg, fetchApiSnapshot));
     const idx = fixtures.findAccountIndexByEmail(&reg, "active@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expectEqual(@as(f64, 15.0), reg.accounts.items[idx].last_usage.?.primary.?.used_percent);
     try std.testing.expectEqual(registry.PlanType.pro, reg.accounts.items[idx].last_usage.?.plan_type.?);
@@ -1785,8 +1785,8 @@ test "Scenario: Given unchanged api usage when refreshing usage then rollout fal
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1798,7 +1798,7 @@ test "Scenario: Given unchanged api usage when refreshing usage then rollout fal
     try registry.setActiveAccountKey(gpa, &reg, active_account_key);
     try tmp.dir.writeFile(.{ .sub_path = "sessions/run-1/rollout-a.jsonl", .data = rollout_line ++ "\n" });
 
-    try std.testing.expect(!(try auto.refreshActiveUsageWithApiFetcher(gpa, codex_home, &reg, fetchApiSnapshot)));
+    try std.testing.expect(!(try auto.refreshActiveUsageWithApiFetcher(gpa, gemini_home, &reg, fetchApiSnapshot)));
     const idx = fixtures.findAccountIndexByEmail(&reg, "active@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expectEqual(@as(f64, 15.0), reg.accounts.items[idx].last_usage.?.primary.?.used_percent);
     try std.testing.expectEqual(@as(i64, 777), reg.accounts.items[idx].last_usage_at.?);
@@ -1809,8 +1809,8 @@ test "Scenario: Given api-backed switch with stale rollout when api later fails 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1825,13 +1825,13 @@ test "Scenario: Given api-backed switch with stale rollout when api later fails 
     reg.active_account_activated_at_ms = 0;
 
     try tmp.dir.writeFile(.{ .sub_path = "sessions/run-1/rollout-a.jsonl", .data = rollout_line ++ "\n" });
-    try std.testing.expect(try auto.refreshActiveUsageWithApiFetcher(gpa, codex_home, &reg, fetchApiSnapshot));
+    try std.testing.expect(try auto.refreshActiveUsageWithApiFetcher(gpa, gemini_home, &reg, fetchApiSnapshot));
 
     const account_id_b = try fixtures.accountKeyForEmailAlloc(gpa, "b@example.com");
     defer gpa.free(account_id_b);
     try registry.setActiveAccountKey(gpa, &reg, account_id_b);
 
-    try std.testing.expect(!(try auto.refreshActiveUsageWithApiFetcher(gpa, codex_home, &reg, fetchApiError)));
+    try std.testing.expect(!(try auto.refreshActiveUsageWithApiFetcher(gpa, gemini_home, &reg, fetchApiError)));
     const b_idx = fixtures.findAccountIndexByEmail(&reg, "b@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expect(reg.accounts.items[b_idx].last_usage == null);
 }
@@ -1841,8 +1841,8 @@ test "Scenario: Given unchanged rollout after switching accounts when refreshing
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1857,7 +1857,7 @@ test "Scenario: Given unchanged rollout after switching accounts when refreshing
 
     try tmp.dir.writeFile(.{ .sub_path = "sessions/run-1/rollout-a.jsonl", .data = rollout_line ++ "\n" });
 
-    try std.testing.expect(try auto.refreshActiveUsage(gpa, codex_home, &reg));
+    try std.testing.expect(try auto.refreshActiveUsage(gpa, gemini_home, &reg));
     const a_idx = fixtures.findAccountIndexByEmail(&reg, "a@example.com") orelse return error.TestExpectedEqual;
     const b_idx = fixtures.findAccountIndexByEmail(&reg, "b@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expect(reg.accounts.items[a_idx].last_usage != null);
@@ -1867,7 +1867,7 @@ test "Scenario: Given unchanged rollout after switching accounts when refreshing
     try registry.setActiveAccountKey(gpa, &reg, account_id_b);
     reg.active_account_activated_at_ms = 1735689600001;
     reg.active_account_activated_at_ms = 1735689630000;
-    try std.testing.expect(!(try auto.refreshActiveUsage(gpa, codex_home, &reg)));
+    try std.testing.expect(!(try auto.refreshActiveUsage(gpa, gemini_home, &reg)));
     try std.testing.expect(reg.accounts.items[b_idx].last_usage == null);
 }
 
@@ -1876,8 +1876,8 @@ test "Scenario: Given new rollout event in the same file after switching account
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1891,7 +1891,7 @@ test "Scenario: Given new rollout event in the same file after switching account
     reg.active_account_activated_at_ms = 0;
 
     try tmp.dir.writeFile(.{ .sub_path = "sessions/run-1/rollout-a.jsonl", .data = rollout_line ++ "\n" });
-    try std.testing.expect(try auto.refreshActiveUsage(gpa, codex_home, &reg));
+    try std.testing.expect(try auto.refreshActiveUsage(gpa, gemini_home, &reg));
 
     const account_id_b = try fixtures.accountKeyForEmailAlloc(gpa, "b@example.com");
     defer gpa.free(account_id_b);
@@ -1907,7 +1907,7 @@ test "Scenario: Given new rollout event in the same file after switching account
         .data = rollout_line ++ "\n" ++ next_rollout_line ++ "\n",
     });
 
-    try std.testing.expect(try auto.refreshActiveUsage(gpa, codex_home, &reg));
+    try std.testing.expect(try auto.refreshActiveUsage(gpa, gemini_home, &reg));
     const b_idx = fixtures.findAccountIndexByEmail(&reg, "b@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expect(reg.accounts.items[b_idx].last_usage != null);
     try std.testing.expectEqual(@as(f64, 48.0), reg.accounts.items[b_idx].last_usage.?.primary.?.used_percent);
@@ -1918,8 +1918,8 @@ test "Scenario: Given API-enabled mode and API failure when refreshing usage the
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1932,7 +1932,7 @@ test "Scenario: Given API-enabled mode and API failure when refreshing usage the
 
     try tmp.dir.writeFile(.{ .sub_path = "sessions/run-1/rollout-a.jsonl", .data = rollout_line ++ "\n" });
 
-    try std.testing.expect(!(try auto.refreshActiveUsageWithApiFetcher(gpa, codex_home, &reg, fetchApiError)));
+    try std.testing.expect(!(try auto.refreshActiveUsageWithApiFetcher(gpa, gemini_home, &reg, fetchApiError)));
     const idx = fixtures.findAccountIndexByEmail(&reg, "active@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expect(reg.accounts.items[idx].last_usage == null);
     try std.testing.expect(reg.accounts.items[idx].last_local_rollout == null);
@@ -1943,8 +1943,8 @@ test "Scenario: Given daemon sees a null-rate-limits rollout then it falls back 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1959,7 +1959,7 @@ test "Scenario: Given daemon sees a null-rate-limits rollout then it falls back 
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, codex_home, &reg, &refresh_state, fetchApiSnapshot));
+    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, gemini_home, &reg, &refresh_state, fetchApiSnapshot));
     const idx = fixtures.findAccountIndexByEmail(&reg, "active@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expect(reg.accounts.items[idx].last_usage != null);
     try std.testing.expectEqual(@as(f64, 15.0), reg.accounts.items[idx].last_usage.?.primary.?.used_percent);
@@ -1971,8 +1971,8 @@ test "Scenario: Given daemon sees an empty-rate-limits rollout then it also fall
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -1987,7 +1987,7 @@ test "Scenario: Given daemon sees an empty-rate-limits rollout then it also fall
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, codex_home, &reg, &refresh_state, fetchApiSnapshot));
+    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, gemini_home, &reg, &refresh_state, fetchApiSnapshot));
     const idx = fixtures.findAccountIndexByEmail(&reg, "active@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expect(reg.accounts.items[idx].last_usage != null);
     try std.testing.expectEqual(@as(f64, 15.0), reg.accounts.items[idx].last_usage.?.primary.?.used_percent);
@@ -1999,8 +1999,8 @@ test "Scenario: Given repeated bad rollout events within the daemon cooldown the
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -2016,8 +2016,8 @@ test "Scenario: Given repeated bad rollout events within the daemon cooldown the
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, codex_home, &reg, &refresh_state, fetchCountingApiSnapshot));
-    try std.testing.expect(!(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, codex_home, &reg, &refresh_state, fetchCountingApiSnapshot)));
+    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCountingApiSnapshot));
+    try std.testing.expect(!(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCountingApiSnapshot)));
     try std.testing.expectEqual(@as(usize, 1), daemon_api_fetch_count);
 }
 
@@ -2026,8 +2026,8 @@ test "Scenario: Given the active daemon account changes during API cooldown then
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
@@ -2046,11 +2046,11 @@ test "Scenario: Given the active daemon account changes during API cooldown then
     var refresh_state = auto.DaemonRefreshState{};
     defer refresh_state.deinit(gpa);
 
-    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, codex_home, &reg, &refresh_state, fetchCountingApiSnapshot));
+    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCountingApiSnapshot));
     try std.testing.expectEqual(@as(usize, 1), daemon_api_fetch_count);
 
     try registry.setActiveAccountKey(gpa, &reg, account_id_b);
-    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, codex_home, &reg, &refresh_state, fetchCountingApiSnapshot));
+    try std.testing.expect(try auto.refreshActiveUsageForDaemonWithApiFetcher(gpa, gemini_home, &reg, &refresh_state, fetchCountingApiSnapshot));
     try std.testing.expectEqual(@as(usize, 2), daemon_api_fetch_count);
 }
 
@@ -2059,8 +2059,8 @@ test "Scenario: Given api failure when returning to local refresh after switchin
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -2074,14 +2074,14 @@ test "Scenario: Given api failure when returning to local refresh after switchin
 
     try tmp.dir.writeFile(.{ .sub_path = "sessions/run-1/rollout-a.jsonl", .data = rollout_line ++ "\n" });
 
-    try std.testing.expect(!(try auto.refreshActiveUsageWithApiFetcher(gpa, codex_home, &reg, fetchApiError)));
+    try std.testing.expect(!(try auto.refreshActiveUsageWithApiFetcher(gpa, gemini_home, &reg, fetchApiError)));
 
     const account_id_b = try fixtures.accountKeyForEmailAlloc(gpa, "b@example.com");
     defer gpa.free(account_id_b);
     try registry.setActiveAccountKey(gpa, &reg, account_id_b);
     reg.api.usage = false;
 
-    try std.testing.expect(!(try auto.refreshActiveUsage(gpa, codex_home, &reg)));
+    try std.testing.expect(!(try auto.refreshActiveUsage(gpa, gemini_home, &reg)));
     const b_idx = fixtures.findAccountIndexByEmail(&reg, "b@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expect(reg.accounts.items[b_idx].last_usage == null);
 }
@@ -2091,8 +2091,8 @@ test "Scenario: Given latest rollout file without usable rate limits when refres
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("sessions/run-1");
 
     var reg = fixtures.makeEmptyRegistry();
@@ -2134,7 +2134,7 @@ test "Scenario: Given latest rollout file without usable rate limits when refres
         try file.updateTimes(base_time + (3 * std.time.ns_per_s), base_time + (3 * std.time.ns_per_s));
     }
 
-    try std.testing.expect(!(try auto.refreshActiveUsage(gpa, codex_home, &reg)));
+    try std.testing.expect(!(try auto.refreshActiveUsage(gpa, gemini_home, &reg)));
     const idx = fixtures.findAccountIndexByEmail(&reg, "active@example.com") orelse return error.TestExpectedEqual;
     try std.testing.expect(reg.accounts.items[idx].last_usage != null);
     try std.testing.expectEqual(@as(f64, 41.0), reg.accounts.items[idx].last_usage.?.primary.?.used_percent);

@@ -1,8 +1,8 @@
 const std = @import("std");
-const codex_auth = @import("codex_auth");
+const gemini_auth = @import("gemini_auth");
 
-const account = codex_auth.auth.account;
-const auth = codex_auth.auth.core;
+const account = gemini_auth.auth.account;
+const auth = gemini_auth.auth.core;
 const considerStoredAuthInfoForRefresh = account.considerStoredAuthInfoForRefresh;
 
 fn makeStoredAuthInfoForTest(

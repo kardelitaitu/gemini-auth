@@ -1,12 +1,12 @@
-# `codex-auth list`
+# `gemini-auth list`
 
 ## Usage
 
 ```shell
-codex-auth list
-codex-auth list --live
-codex-auth list --api
-codex-auth list --skip-api
+gemini-auth list
+gemini-auth list --live
+gemini-auth list --api
+gemini-auth list --skip-api
 ```
 
 ## Behavior

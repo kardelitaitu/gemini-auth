@@ -1,13 +1,13 @@
 # API Refresh
 
-This document is the single source of truth for outbound ChatGPT API refresh behavior in `codex-auth`.
+This document is the single source of truth for outbound ChatGPT API refresh behavior in `gemini-auth`.
 
 All API refresh requests are issued through `Node.js fetch`.
-When `codex-auth` is launched from the npm package, the wrapper passes its current Node executable to the Zig binary.
+When `gemini-auth` is launched from the npm package, the wrapper passes its current Node executable to the Zig binary.
 Legacy standalone binary installs must have Node.js 22+ available on `PATH` for API-backed refresh to work.
 Built-in Node environment-proxy support for `fetch()` requires Node.js `22.21.0+` or `24.0.0+`.
 
-`codex-auth` configures proxy support for the fetch child process in this order:
+`gemini-auth` configures proxy support for the fetch child process in this order:
 
 1. inherit explicit `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` values from the parent process
 2. map `ALL_PROXY` into `HTTP_PROXY` and `HTTPS_PROXY` when the direct variables are absent
@@ -40,7 +40,7 @@ The `accounts/check` response is parsed by `chatgpt_account_id`. `name: null` an
 ## Usage Refresh Rules
 
 - `api.usage = true`: foreground refresh uses the usage API.
-- `api.usage = false`: foreground refresh reads only the newest local `~/.codex/sessions/**/rollout-*.jsonl`.
+- `api.usage = false`: foreground refresh reads only the newest local `~/.gemini/sessions/**/rollout-*.jsonl`.
 - when `api.usage = true`, `list` and interactive `switch` refresh all stored accounts before rendering, using stored auth snapshots under `accounts/` with a maximum concurrency of `3`
 - when one of those per-account foreground usage requests returns a non-`200` HTTP status, the corresponding `list` / `switch` row shows that response status in both usage columns until a later successful refresh replaces it
 - when a stored account snapshot cannot make a ChatGPT usage request because it is missing the required ChatGPT auth fields, the corresponding `list` / `switch` row shows `MissingAuth` in both usage columns until a later successful refresh replaces it
@@ -121,7 +121,7 @@ Example 1:
 - active record: `user@example.com / Team #1 / account_name = null`
 - same grouped scope: `user@example.com / Team #2 / account_name = null`
 
-Running `codex-auth list` should issue `accounts/check`. If the API returns:
+Running `gemini-auth list` should issue `accounts/check`. If the API returns:
 
 - `team-1 -> "Workspace Alpha"`
 - `team-2 -> "Workspace Beta"`
@@ -134,7 +134,7 @@ Example 2:
 - same grouped scope: `user@example.com / Team #1 / account_name = null`
 - same grouped scope: `user@example.com / Team #2 / account_name = "Old Workspace"`
 
-Running `codex-auth list` should still issue `accounts/check`, because the grouped scope still has missing Team names. If the API returns:
+Running `gemini-auth list` should still issue `accounts/check`, because the grouped scope still has missing Team names. If the API returns:
 
 - `team-1 -> "Prod Workspace"`
 - `team-2 -> "Sandbox Workspace"`

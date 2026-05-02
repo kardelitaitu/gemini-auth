@@ -1,10 +1,10 @@
 const std = @import("std");
-const codex_auth = @import("codex_auth");
+const gemini_auth = @import("gemini_auth");
 
-const app_runtime = codex_auth.core.runtime;
-const cli = codex_auth.cli;
+const app_runtime = gemini_auth.core.runtime;
+const cli = gemini_auth.cli;
 const live_tui = cli.live_tui;
-const registry = codex_auth.registry;
+const registry = gemini_auth.registry;
 const isQuitInput = cli.picker.isQuitInput;
 const isQuitKey = cli.picker.isQuitKey;
 const activeSelectableIndex = cli.picker.activeSelectableIndex;

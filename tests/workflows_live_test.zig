@@ -56,13 +56,13 @@ test "background account-name refresh returns early when another refresh holds t
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
 
     TestState.fetch_count = 0;
     try runBackgroundAccountNameRefreshWithLockAcquirer(
         gpa,
-        codex_home,
+        gemini_home,
         TestState.unexpectedFetcher,
         TestState.lockUnavailable,
     );
@@ -75,7 +75,7 @@ test "handled cli errors include missing node" {
 
 fn saveLivePolicyTestRegistry(
     allocator: std.mem.Allocator,
-    codex_home: []const u8,
+    gemini_home: []const u8,
     api_config: registry.ApiConfig,
     live_config: registry.LiveConfig,
 ) !void {
@@ -89,17 +89,17 @@ fn saveLivePolicyTestRegistry(
         .accounts = std.ArrayList(registry.AccountRecord).empty,
     };
     defer reg.deinit(allocator);
-    try registry.saveRegistry(allocator, codex_home, &reg);
+    try registry.saveRegistry(allocator, gemini_home, &reg);
 }
 
 fn expectInitialLiveSelectionPolicy(
     allocator: std.mem.Allocator,
-    codex_home: []const u8,
+    gemini_home: []const u8,
     target: ForegroundUsageRefreshTarget,
     api_mode: cli.types.ApiMode,
     expected: SwitchLiveRefreshPolicy,
 ) !void {
-    var loaded = try loadInitialLiveSelectionDisplay(allocator, codex_home, target, api_mode);
+    var loaded = try loadInitialLiveSelectionDisplay(allocator, gemini_home, target, api_mode);
     defer loaded.display.deinit(allocator);
     defer if (loaded.refresh_error_name) |name| allocator.free(name);
 
@@ -139,13 +139,13 @@ fn appendLiveMergeTestAccount(
 
 fn writeLiveActionTestSnapshot(
     allocator: std.mem.Allocator,
-    codex_home: []const u8,
+    gemini_home: []const u8,
     account_key: []const u8,
     email: []const u8,
     plan: []const u8,
 ) !void {
-    try registry.ensureAccountsDir(allocator, codex_home);
-    const auth_path = try registry.accountAuthPath(allocator, codex_home, account_key);
+    try registry.ensureAccountsDir(allocator, gemini_home);
+    const auth_path = try registry.accountAuthPath(allocator, gemini_home, account_key);
     defer allocator.free(auth_path);
     const auth_json = try fixtures.authJsonWithEmailPlan(allocator, email, plan);
     defer allocator.free(auth_json);
@@ -165,13 +165,13 @@ test "initial live selection display uses stored api defaults for list, switch, 
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
 
-    try saveLivePolicyTestRegistry(gpa, codex_home, registry.defaultApiConfig(), registry.defaultLiveConfig());
+    try saveLivePolicyTestRegistry(gpa, gemini_home, registry.defaultApiConfig(), registry.defaultLiveConfig());
 
     inline for ([_]ForegroundUsageRefreshTarget{ .list, .switch_account, .remove_account }) |target| {
-        try expectInitialLiveSelectionPolicy(gpa, codex_home, target, .default, .{
+        try expectInitialLiveSelectionPolicy(gpa, gemini_home, target, .default, .{
             .usage_api_enabled = true,
             .account_api_enabled = true,
             .interval_ms = switch_live_default_refresh_interval_ms,
@@ -185,16 +185,16 @@ test "initial live selection display preserves mixed stored api defaults for lis
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
 
-    try saveLivePolicyTestRegistry(gpa, codex_home, .{
+    try saveLivePolicyTestRegistry(gpa, gemini_home, .{
         .usage = false,
         .account = true,
     }, registry.defaultLiveConfig());
 
     inline for ([_]ForegroundUsageRefreshTarget{ .list, .switch_account, .remove_account }) |target| {
-        try expectInitialLiveSelectionPolicy(gpa, codex_home, target, .default, .{
+        try expectInitialLiveSelectionPolicy(gpa, gemini_home, target, .default, .{
             .usage_api_enabled = false,
             .account_api_enabled = true,
             .interval_ms = switch_live_default_refresh_interval_ms,
@@ -208,16 +208,16 @@ test "initial live selection display honors explicit api mode overrides for list
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
 
-    try saveLivePolicyTestRegistry(gpa, codex_home, .{
+    try saveLivePolicyTestRegistry(gpa, gemini_home, .{
         .usage = false,
         .account = false,
     }, registry.defaultLiveConfig());
 
     inline for ([_]ForegroundUsageRefreshTarget{ .list, .switch_account, .remove_account }) |target| {
-        try expectInitialLiveSelectionPolicy(gpa, codex_home, target, .force_api, .{
+        try expectInitialLiveSelectionPolicy(gpa, gemini_home, target, .force_api, .{
             .usage_api_enabled = true,
             .account_api_enabled = true,
             .interval_ms = switch_live_default_refresh_interval_ms,
@@ -225,10 +225,10 @@ test "initial live selection display honors explicit api mode overrides for list
         });
     }
 
-    try saveLivePolicyTestRegistry(gpa, codex_home, registry.defaultApiConfig(), registry.defaultLiveConfig());
+    try saveLivePolicyTestRegistry(gpa, gemini_home, registry.defaultApiConfig(), registry.defaultLiveConfig());
 
     inline for ([_]ForegroundUsageRefreshTarget{ .list, .switch_account, .remove_account }) |target| {
-        try expectInitialLiveSelectionPolicy(gpa, codex_home, target, .skip_api, .{
+        try expectInitialLiveSelectionPolicy(gpa, gemini_home, target, .skip_api, .{
             .usage_api_enabled = false,
             .account_api_enabled = false,
             .interval_ms = switch_live_default_refresh_interval_ms,
@@ -242,18 +242,18 @@ test "initial live selection display uses configured live refresh interval for a
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
 
-    try saveLivePolicyTestRegistry(gpa, codex_home, registry.defaultApiConfig(), .{ .interval_seconds = 45 });
-    try expectInitialLiveSelectionPolicy(gpa, codex_home, .list, .default, .{
+    try saveLivePolicyTestRegistry(gpa, gemini_home, registry.defaultApiConfig(), .{ .interval_seconds = 45 });
+    try expectInitialLiveSelectionPolicy(gpa, gemini_home, .list, .default, .{
         .usage_api_enabled = true,
         .account_api_enabled = true,
         .interval_ms = 45_000,
         .label = "api",
     });
 
-    try expectInitialLiveSelectionPolicy(gpa, codex_home, .list, .skip_api, .{
+    try expectInitialLiveSelectionPolicy(gpa, gemini_home, .list, .skip_api, .{
         .usage_api_enabled = false,
         .account_api_enabled = false,
         .interval_ms = 45_000,
@@ -336,8 +336,8 @@ test "switch live action patches the current display after switching" {
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
 
     const alpha_key = try fixtures.accountKeyForEmailAlloc(gpa, "alpha@example.com");
     defer gpa.free(alpha_key);
@@ -357,13 +357,13 @@ test "switch live action patches the current display after switching" {
     try appendLiveMergeTestAccount(gpa, &reg, beta_key, "beta@example.com", "");
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Registry Beta");
     try registry.setActiveAccountKey(gpa, &reg, alpha_key);
-    try registry.saveRegistry(gpa, codex_home, &reg);
-    try writeLiveActionTestSnapshot(gpa, codex_home, alpha_key, "alpha@example.com", "team");
-    try writeLiveActionTestSnapshot(gpa, codex_home, beta_key, "beta@example.com", "plus");
+    try registry.saveRegistry(gpa, gemini_home, &reg);
+    try writeLiveActionTestSnapshot(gpa, gemini_home, alpha_key, "alpha@example.com", "team");
+    try writeLiveActionTestSnapshot(gpa, gemini_home, beta_key, "beta@example.com", "plus");
 
     var runtime = SwitchLiveRuntime.init(
         gpa,
-        codex_home,
+        gemini_home,
         .switch_account,
         .skip_api,
         false,
@@ -387,7 +387,7 @@ test "switch live action patches the current display after switching" {
     runtime.last_refresh_duration_ms = null;
     runtime.mutex.unlock(live_io);
 
-    var current_display = try loadStoredSwitchSelectionDisplay(gpa, codex_home, .switch_account, .skip_api);
+    var current_display = try loadStoredSwitchSelectionDisplay(gpa, gemini_home, .switch_account, .skip_api);
     defer current_display.display.deinit(gpa);
     defer if (current_display.refresh_error_name) |name| gpa.free(name);
     const alpha_idx = findAccountIndexByAccountKeyConst(&current_display.display.reg, alpha_key) orelse return error.TestExpectedEqual;
@@ -431,7 +431,7 @@ test "switch live action patches the current display after switching" {
         runtime.next_refresh_not_before_ms,
     );
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqualStrings(beta_key, loaded.active_account_key.?);
 }
@@ -441,8 +441,8 @@ test "switch live action does not wait for an in-flight refresh" {
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
 
     const alpha_key = try fixtures.accountKeyForEmailAlloc(gpa, "alpha@example.com");
     defer gpa.free(alpha_key);
@@ -461,13 +461,13 @@ test "switch live action does not wait for an in-flight refresh" {
     try appendLiveMergeTestAccount(gpa, &reg, alpha_key, "alpha@example.com", "");
     try appendLiveMergeTestAccount(gpa, &reg, beta_key, "beta@example.com", "");
     try registry.setActiveAccountKey(gpa, &reg, alpha_key);
-    try registry.saveRegistry(gpa, codex_home, &reg);
-    try writeLiveActionTestSnapshot(gpa, codex_home, alpha_key, "alpha@example.com", "team");
-    try writeLiveActionTestSnapshot(gpa, codex_home, beta_key, "beta@example.com", "plus");
+    try registry.saveRegistry(gpa, gemini_home, &reg);
+    try writeLiveActionTestSnapshot(gpa, gemini_home, alpha_key, "alpha@example.com", "team");
+    try writeLiveActionTestSnapshot(gpa, gemini_home, beta_key, "beta@example.com", "plus");
 
     var runtime = SwitchLiveRuntime.init(
         gpa,
-        codex_home,
+        gemini_home,
         .switch_account,
         .skip_api,
         false,
@@ -491,7 +491,7 @@ test "switch live action does not wait for an in-flight refresh" {
     runtime.last_refresh_started_at_ms = nowMilliseconds();
     runtime.mutex.unlock(live_io);
 
-    var current_display = try loadStoredSwitchSelectionDisplay(gpa, codex_home, .switch_account, .skip_api);
+    var current_display = try loadStoredSwitchSelectionDisplay(gpa, gemini_home, .switch_account, .skip_api);
     defer current_display.display.deinit(gpa);
     defer if (current_display.refresh_error_name) |name| gpa.free(name);
 
@@ -519,8 +519,8 @@ test "remove live action patches the current display after deleting the active a
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
 
     const alpha_key = try fixtures.accountKeyForEmailAlloc(gpa, "alpha@example.com");
     defer gpa.free(alpha_key);
@@ -550,13 +550,13 @@ test "remove live action patches the current display after deleting the active a
     });
     reg.accounts.items[1].last_usage_at = nowSeconds() - 60;
     try registry.setActiveAccountKey(gpa, &reg, alpha_key);
-    try registry.saveRegistry(gpa, codex_home, &reg);
-    try writeLiveActionTestSnapshot(gpa, codex_home, alpha_key, "alpha@example.com", "team");
-    try writeLiveActionTestSnapshot(gpa, codex_home, beta_key, "beta@example.com", "plus");
+    try registry.saveRegistry(gpa, gemini_home, &reg);
+    try writeLiveActionTestSnapshot(gpa, gemini_home, alpha_key, "alpha@example.com", "team");
+    try writeLiveActionTestSnapshot(gpa, gemini_home, beta_key, "beta@example.com", "plus");
 
     var runtime = SwitchLiveRuntime.init(
         gpa,
-        codex_home,
+        gemini_home,
         .remove_account,
         .skip_api,
         false,
@@ -581,7 +581,7 @@ test "remove live action patches the current display after deleting the active a
     runtime.last_refresh_duration_ms = null;
     runtime.mutex.unlock(live_io);
 
-    var current_display = try loadStoredSwitchSelectionDisplay(gpa, codex_home, .remove_account, .skip_api);
+    var current_display = try loadStoredSwitchSelectionDisplay(gpa, gemini_home, .remove_account, .skip_api);
     defer current_display.display.deinit(gpa);
     defer if (current_display.refresh_error_name) |name| gpa.free(name);
     const alpha_idx = findAccountIndexByAccountKeyConst(&current_display.display.reg, alpha_key) orelse return error.TestExpectedEqual;
@@ -627,7 +627,7 @@ test "remove live action patches the current display after deleting the active a
         runtime.next_refresh_not_before_ms,
     );
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(findAccountIndexByAccountKeyConst(&loaded, alpha_key) == null);
@@ -639,8 +639,8 @@ test "remove live action does not wait for an in-flight refresh" {
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
 
     const alpha_key = try fixtures.accountKeyForEmailAlloc(gpa, "alpha@example.com");
     defer gpa.free(alpha_key);
@@ -659,13 +659,13 @@ test "remove live action does not wait for an in-flight refresh" {
     try appendLiveMergeTestAccount(gpa, &reg, alpha_key, "alpha@example.com", "");
     try appendLiveMergeTestAccount(gpa, &reg, beta_key, "beta@example.com", "");
     try registry.setActiveAccountKey(gpa, &reg, alpha_key);
-    try registry.saveRegistry(gpa, codex_home, &reg);
-    try writeLiveActionTestSnapshot(gpa, codex_home, alpha_key, "alpha@example.com", "team");
-    try writeLiveActionTestSnapshot(gpa, codex_home, beta_key, "beta@example.com", "plus");
+    try registry.saveRegistry(gpa, gemini_home, &reg);
+    try writeLiveActionTestSnapshot(gpa, gemini_home, alpha_key, "alpha@example.com", "team");
+    try writeLiveActionTestSnapshot(gpa, gemini_home, beta_key, "beta@example.com", "plus");
 
     var runtime = SwitchLiveRuntime.init(
         gpa,
-        codex_home,
+        gemini_home,
         .remove_account,
         .skip_api,
         false,
@@ -690,7 +690,7 @@ test "remove live action does not wait for an in-flight refresh" {
     runtime.mutex.unlock(live_io);
 
     const selected = [_][]const u8{beta_key};
-    var current_display = try loadStoredSwitchSelectionDisplay(gpa, codex_home, .remove_account, .skip_api);
+    var current_display = try loadStoredSwitchSelectionDisplay(gpa, gemini_home, .remove_account, .skip_api);
     defer current_display.display.deinit(gpa);
     defer if (current_display.refresh_error_name) |name| gpa.free(name);
 
@@ -753,8 +753,8 @@ test "live fallback display preserves the refresh error name" {
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
 
     var reg: registry.Registry = .{
         .schema_version = registry.current_schema_version,
@@ -765,11 +765,11 @@ test "live fallback display preserves the refresh error name" {
         .accounts = std.ArrayList(registry.AccountRecord).empty,
     };
     defer reg.deinit(gpa);
-    try registry.saveRegistry(gpa, codex_home, &reg);
+    try registry.saveRegistry(gpa, gemini_home, &reg);
 
     var loaded = try loadStoredSwitchSelectionDisplayWithRefreshError(
         gpa,
-        codex_home,
+        gemini_home,
         .switch_account,
         .skip_api,
         error.NodeJsRequired,

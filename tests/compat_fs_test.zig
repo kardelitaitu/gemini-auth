@@ -1,5 +1,5 @@
 const std = @import("std");
-const fs = @import("codex_auth").core.compat_fs;
+const fs = @import("gemini_auth").core.compat_fs;
 
 const io = fs.io;
 

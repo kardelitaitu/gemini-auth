@@ -1,6 +1,6 @@
 # Command Reference
 
-This directory documents command behavior by command. Use `codex-auth <command> --help` for the shortest in-terminal usage form.
+This directory documents command behavior by command. Use `gemini-auth <command> --help` for the shortest in-terminal usage form.
 
 ## Commands
 
@@ -18,8 +18,8 @@ This directory documents command behavior by command. Use `codex-auth <command> 
 
 ## Shared Behavior
 
-- Commands resolve `codex_home` from `CODEX_HOME`, then `HOME/.codex`, then `USERPROFILE/.codex` on Windows.
+- Commands resolve `gemini_home` from `GEMINI_HOME`, then `HOME/.gemini`, then `USERPROFILE/.gemini` on Windows.
 - Account selection commands use the same row ordering and display grouping.
 - `--api` forces remote usage and account-name refresh for the current command.
 - `--skip-api` forbids remote refresh for the current command.
-- Local-only usage refresh can update the active account from local Codex rollout files when usable local data exists.
+- Local-only usage refresh can update the active account from local Gemini rollout files when usable local data exists.

@@ -1,7 +1,7 @@
 # Gemini-CLI Auth Migration TODO
 
 ## Overview
-Migrate `codex-auth` tool from OpenAI Codex CLI authentication to Google Gemini CLI authentication.
+Migrate `gemini-auth` tool from OpenAI Gemini CLI authentication to Google Gemini CLI authentication.
 
 ## Research Phase
 
@@ -23,7 +23,7 @@ Migrate `codex-auth` tool from OpenAI Codex CLI authentication to Google Gemini 
   - JWT `id_token` contains: `email`, `name`, `picture`, `sub` (google_user_id)
   
 - [x] Research Gemini CLI directory structure
-  - **Default home path**: `~/.gemini/` (NOT `~/.codex/`)
+  - **Default home path**: `~/.gemini/` (NOT `~/.gemini/`)
   - **Environment variable**: Need to verify `GEMINI_HOME` support
   - **Account storage**: Single `oauth_creds.json` (multi-account TBD)
 
@@ -35,9 +35,9 @@ Migrate `codex-auth` tool from OpenAI Codex CLI authentication to Google Gemini 
 ## Core Changes
 
 ### 1. Path & Environment Variables (`src/registry/common.zig`)
-- [ ] Change `CODEX_HOME` → `GEMINI_HOME`
-- [ ] Change default home `~/.codex` → `~/.gemini`
-- [ ] Update `resolveCodexHome()` → `resolveGeminiHome()`
+- [ ] Change `GEMINI_HOME` → `GEMINI_HOME`
+- [ ] Change default home `~/.gemini` → `~/.gemini`
+- [ ] Update `resolveGeminiHome()` → `resolveGeminiHome()`
 - [ ] Update `resolveUserHome()` if needed
 - [ ] Rename functions: `activeAuthPath()`, `accountAuthPath()`, etc.
 
@@ -74,7 +74,7 @@ Migrate `codex-auth` tool from OpenAI Codex CLI authentication to Google Gemini 
 - [ ] Update `account_api.zig` for Gemini API
 
 ### 6. CLI Commands & UI (`src/cli/`, `src/tui/`)
-- [ ] Update all CLI output: "codex" → "gemini"
+- [ ] Update all CLI output: "gemini" → "gemini"
 - [ ] Update binary name references
 - [ ] Update help text and examples
 - [ ] Update TUI labels and menus
@@ -93,9 +93,9 @@ Migrate `codex-auth` tool from OpenAI Codex CLI authentication to Google Gemini 
 
 ### 9. Documentation
 - [ ] Update `README.md`
-  - Change "Codex Auth" → "Gemini Auth"
+  - Change "Gemini Auth" → "Gemini Auth"
   - Update install instructions (npm package name)
-  - Update CLI examples: `codex-auth` → `gemini-auth`
+  - Update CLI examples: `gemini-auth` → `gemini-auth`
   - Update supported platforms
 - [ ] Update `docs/commands/*.md` for new CLI
 - [ ] Update `USER.md` if exists

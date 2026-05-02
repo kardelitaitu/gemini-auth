@@ -131,7 +131,7 @@ fn buildCliBinary(allocator: std.mem.Allocator, project_root: []const u8) !void 
 }
 
 fn builtCliPathAlloc(allocator: std.mem.Allocator, project_root: []const u8) ![]u8 {
-    const exe_name = if (builtin.os.tag == .windows) "codex-auth.exe" else "codex-auth";
+    const exe_name = if (builtin.os.tag == .windows) "gemini-auth.exe" else "gemini-auth";
     const install_prefix = getEnvVarOwned(allocator, cli_integration_install_prefix_env) catch |err| switch (err) {
         error.EnvironmentVariableNotFound => null,
         else => return err,
@@ -142,17 +142,17 @@ fn builtCliPathAlloc(allocator: std.mem.Allocator, project_root: []const u8) ![]
     return fs.path.join(allocator, &[_][]const u8{ prefix, "bin", exe_name });
 }
 
-fn fakeCodexCommandPath() []const u8 {
-    return if (builtin.os.tag == .windows) "fake-bin/codex.cmd" else "fake-bin/codex";
+fn fakeGeminiCommandPath() []const u8 {
+    return if (builtin.os.tag == .windows) "fake-bin/gemini.cmd" else "fake-bin/gemini";
 }
 
-fn writeFailingFakeCodex(dir: fs.Dir, exit_code: u8) !void {
+fn writeFailingFakeGemini(dir: fs.Dir, exit_code: u8) !void {
     var script_buf: [128]u8 = undefined;
     const script = if (builtin.os.tag == .windows)
-        try std.fmt.bufPrint(&script_buf, "@echo off\r\n>\"%HOME%\\fake-codex-argv.txt\" echo %*\r\nexit /b {d}\r\n", .{exit_code})
+        try std.fmt.bufPrint(&script_buf, "@echo off\r\n>\"%HOME%\\fake-gemini-argv.txt\" echo %*\r\nexit /b {d}\r\n", .{exit_code})
     else
-        try std.fmt.bufPrint(&script_buf, "#!/bin/sh\nprintf '%s\\n' \"$*\" > \"$HOME/fake-codex-argv.txt\"\nexit {d}\n", .{exit_code});
-    const sub_path = fakeCodexCommandPath();
+        try std.fmt.bufPrint(&script_buf, "#!/bin/sh\nprintf '%s\\n' \"$*\" > \"$HOME/fake-gemini-argv.txt\"\nexit {d}\n", .{exit_code});
+    const sub_path = fakeGeminiCommandPath();
     try dir.writeFile(.{ .sub_path = sub_path, .data = script });
 
     if (builtin.os.tag != .windows) {
@@ -162,11 +162,11 @@ fn writeFailingFakeCodex(dir: fs.Dir, exit_code: u8) !void {
     }
 }
 
-fn writeSuccessfulFakeCodex(dir: fs.Dir) !void {
+fn writeSuccessfulFakeGemini(dir: fs.Dir) !void {
     const script =
         if (builtin.os.tag == .windows)
             "@echo off\r\n" ++
-                ">\"%HOME%\\fake-codex-argv.txt\" echo %*\r\n" ++
+                ">\"%HOME%\\fake-gemini-argv.txt\" echo %*\r\n" ++
                 "set \"GEMINI_HOME_DIR=%GEMINI_HOME%\"\r\n" ++
                 "if \"%GEMINI_HOME_DIR%\"==\"\" set \"GEMINI_HOME_DIR=%HOME%\\.gemini\"\r\n" ++
                 "if not exist \"%GEMINI_HOME_DIR%\" mkdir \"%GEMINI_HOME_DIR%\"\r\n" ++
@@ -174,12 +174,12 @@ fn writeSuccessfulFakeCodex(dir: fs.Dir) !void {
                 "exit /b 0\r\n"
         else
             "#!/bin/sh\n" ++
-                "printf '%s\\n' \"$*\" > \"$HOME/fake-codex-argv.txt\"\n" ++
+                "printf '%s\\n' \"$*\" > \"$HOME/fake-gemini-argv.txt\"\n" ++
                 "GEMINI_HOME_DIR=\"${GEMINI_HOME:-$HOME/.gemini}\"\n" ++
                 "mkdir -p \"$GEMINI_HOME_DIR\"\n" ++
                 "cp \"$HOME/fake-auth.json\" \"$GEMINI_HOME_DIR/auth.json\"\n" ++
                 "exit 0\n";
-    const sub_path = fakeCodexCommandPath();
+    const sub_path = fakeGeminiCommandPath();
     try dir.writeFile(.{ .sub_path = sub_path, .data = script });
 
     if (builtin.os.tag != .windows) {
@@ -243,11 +243,11 @@ fn runCliWithIsolatedHome(
     return try runCapture(allocator, project_root, &env_map, argv.items);
 }
 
-fn runCliWithIsolatedHomeAndCodexHome(
+fn runCliWithIsolatedHomeAndGeminiHome(
     allocator: std.mem.Allocator,
     project_root: []const u8,
     home_root: []const u8,
-    codex_home: []const u8,
+    gemini_home: []const u8,
     args: []const []const u8,
 ) !std.process.RunResult {
     const exe_path = try builtCliPathAlloc(allocator, project_root);
@@ -262,18 +262,18 @@ fn runCliWithIsolatedHomeAndCodexHome(
     defer env_map.deinit();
     try env_map.put("HOME", home_root);
     try env_map.put("USERPROFILE", home_root);
-    try env_map.put("GEMINI_HOME", codex_home);
+    try env_map.put("GEMINI_HOME", gemini_home);
     try env_map.put("CODEX_AUTH_SKIP_SERVICE_RECONCILE", "1");
     try env_map.put("CODEX_AUTH_DISABLE_BACKGROUND_ACCOUNT_NAME_REFRESH", "1");
 
     return try runCapture(allocator, project_root, &env_map, argv.items);
 }
 
-fn runCliWithIsolatedHomeAndCodexHomeAndPath(
+fn runCliWithIsolatedHomeAndGeminiHomeAndPath(
     allocator: std.mem.Allocator,
     project_root: []const u8,
     home_root: []const u8,
-    codex_home: []const u8,
+    gemini_home: []const u8,
     path_override: []const u8,
     args: []const []const u8,
 ) !std.process.RunResult {
@@ -289,7 +289,7 @@ fn runCliWithIsolatedHomeAndCodexHomeAndPath(
     defer env_map.deinit();
     try env_map.put("HOME", home_root);
     try env_map.put("USERPROFILE", home_root);
-    try env_map.put("GEMINI_HOME", codex_home);
+    try env_map.put("GEMINI_HOME", gemini_home);
     try env_map.put("PATH", path_override);
     try env_map.put("CODEX_AUTH_SKIP_SERVICE_RECONCILE", "1");
     try env_map.put("CODEX_AUTH_DISABLE_BACKGROUND_ACCOUNT_NAME_REFRESH", "1");
@@ -480,7 +480,7 @@ fn authJsonPathAlloc(allocator: std.mem.Allocator, home_root: []const u8) ![]u8 
     return fs.path.join(allocator, &[_][]const u8{ home_root, ".gemini", "auth.json" });
 }
 
-fn codexHomeAlloc(allocator: std.mem.Allocator, home_root: []const u8) ![]u8 {
+fn geminiHomeAlloc(allocator: std.mem.Allocator, home_root: []const u8) ![]u8 {
     return fs.path.join(allocator, &[_][]const u8{ home_root, ".gemini" });
 }
 
@@ -509,8 +509,8 @@ fn seedRegistryWithAccounts(
     active_email: []const u8,
     entries: []const SeedAccount,
 ) !void {
-    const codex_home = try codexHomeAlloc(allocator, home_root);
-    defer allocator.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(allocator, home_root);
+    defer allocator.free(gemini_home);
 
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(allocator);
@@ -522,7 +522,7 @@ fn seedRegistryWithAccounts(
     const active_key = try fixtures.accountKeyForEmailAlloc(allocator, active_email);
     reg.active_account_key = active_key;
     reg.active_account_activated_at_ms = std.Io.Timestamp.now(app_runtime.io(), .real).toMilliseconds();
-    try registry.saveRegistry(allocator, codex_home, &reg);
+    try registry.saveRegistry(allocator, gemini_home, &reg);
 }
 
 fn setRegistryApiConfig(
@@ -531,14 +531,14 @@ fn setRegistryApiConfig(
     usage_enabled: bool,
     account_enabled: bool,
 ) !void {
-    const codex_home = try codexHomeAlloc(allocator, home_root);
-    defer allocator.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(allocator, home_root);
+    defer allocator.free(gemini_home);
 
-    var reg = try registry.loadRegistry(allocator, codex_home);
+    var reg = try registry.loadRegistry(allocator, gemini_home);
     defer reg.deinit(allocator);
     reg.api.usage = usage_enabled;
     reg.api.account = account_enabled;
-    try registry.saveRegistry(allocator, codex_home, &reg);
+    try registry.saveRegistry(allocator, gemini_home, &reg);
 }
 
 fn makeUsageSnapshot(primary_used_percent: f64, secondary_used_percent: f64) registry.RateLimitSnapshot {
@@ -566,10 +566,10 @@ fn setStoredUsageSnapshotForAccount(
     last_usage_at: i64,
     active_account_activated_at_ms: i64,
 ) !void {
-    const codex_home = try codexHomeAlloc(allocator, home_root);
-    defer allocator.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(allocator, home_root);
+    defer allocator.free(gemini_home);
 
-    var reg = try registry.loadRegistry(allocator, codex_home);
+    var reg = try registry.loadRegistry(allocator, gemini_home);
     defer reg.deinit(allocator);
 
     const account_key = try fixtures.accountKeyForEmailAlloc(allocator, email);
@@ -578,7 +578,7 @@ fn setStoredUsageSnapshotForAccount(
     const idx = registry.findAccountIndexByAccountKey(&reg, account_key) orelse return error.TestExpectedEqual;
     reg.accounts.items[idx].last_usage_at = last_usage_at;
     reg.active_account_activated_at_ms = active_account_activated_at_ms;
-    try registry.saveRegistry(allocator, codex_home, &reg);
+    try registry.saveRegistry(allocator, gemini_home, &reg);
 }
 
 fn writeLocalRolloutUsage(
@@ -647,7 +647,7 @@ test "Scenario: Given device auth login when running login then it forwards the 
     const fake_auth = try fixtures.authJsonWithEmailPlan(gpa, expected_email, "plus");
     defer gpa.free(fake_auth);
     try tmp.dir.writeFile(.{ .sub_path = "fake-auth.json", .data = fake_auth });
-    try writeSuccessfulFakeCodex(tmp.dir);
+    try writeSuccessfulFakeGemini(tmp.dir);
 
     const fake_bin_path = try fs.path.join(gpa, &[_][]const u8{ home_root, "fake-bin" });
     defer gpa.free(fake_bin_path);
@@ -668,15 +668,15 @@ test "Scenario: Given device auth login when running login then it forwards the 
     try std.testing.expectEqualStrings("", result.stdout);
     try std.testing.expectEqualStrings("", result.stderr);
 
-    const argv_path = try fs.path.join(gpa, &[_][]const u8{ home_root, "fake-codex-argv.txt" });
+    const argv_path = try fs.path.join(gpa, &[_][]const u8{ home_root, "fake-gemini-argv.txt" });
     defer gpa.free(argv_path);
     const argv_data = try fixtures.readFileAlloc(gpa, argv_path);
     defer gpa.free(argv_data);
     try std.testing.expect(std.mem.indexOf(u8, argv_data, "login --device-auth") != null);
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(loaded.active_account_key != null);
@@ -686,7 +686,7 @@ test "Scenario: Given device auth login when running login then it forwards the 
     defer gpa.free(expected_account_key);
     try std.testing.expect(std.mem.eql(u8, loaded.active_account_key.?, expected_account_key));
 
-    const snapshot_path = try registry.accountAuthPath(gpa, codex_home, expected_account_key);
+    const snapshot_path = try registry.accountAuthPath(gpa, gemini_home, expected_account_key);
     defer gpa.free(snapshot_path);
     const snapshot_data = try fixtures.readFileAlloc(gpa, snapshot_path);
     defer gpa.free(snapshot_data);
@@ -710,28 +710,28 @@ test "Scenario: Given GEMINI_HOME override when running login then it stores aut
 
     const home_root = try tmp.dir.realpathAlloc(gpa, ".");
     defer gpa.free(home_root);
-    try tmp.dir.makePath("custom-codex");
+    try tmp.dir.makePath("custom-gemini");
     try tmp.dir.makePath("fake-bin");
 
-    const custom_codex_home = try tmp.dir.realpathAlloc(gpa, "custom-codex");
-    defer gpa.free(custom_codex_home);
+    const custom_gemini_home = try tmp.dir.realpathAlloc(gpa, "custom-gemini");
+    defer gpa.free(custom_gemini_home);
 
     const expected_email = "override@example.com";
     const fake_auth = try fixtures.authJsonWithEmailPlan(gpa, expected_email, "plus");
     defer gpa.free(fake_auth);
     try tmp.dir.writeFile(.{ .sub_path = "fake-auth.json", .data = fake_auth });
-    try writeSuccessfulFakeCodex(tmp.dir);
+    try writeSuccessfulFakeGemini(tmp.dir);
 
     const fake_bin_path = try fs.path.join(gpa, &[_][]const u8{ home_root, "fake-bin" });
     defer gpa.free(fake_bin_path);
     const path_override = try prependPathEntryAlloc(gpa, fake_bin_path);
     defer gpa.free(path_override);
 
-    const result = try runCliWithIsolatedHomeAndCodexHomeAndPath(
+    const result = try runCliWithIsolatedHomeAndGeminiHomeAndPath(
         gpa,
         project_root,
         home_root,
-        custom_codex_home,
+        custom_gemini_home,
         path_override,
         &[_][]const u8{ "login", "--device-auth" },
     );
@@ -740,7 +740,7 @@ test "Scenario: Given GEMINI_HOME override when running login then it stores aut
 
     try expectSuccess(result);
 
-    const custom_auth_path = try registry.activeAuthPath(gpa, custom_codex_home);
+    const custom_auth_path = try registry.activeAuthPath(gpa, custom_gemini_home);
     defer gpa.free(custom_auth_path);
     try fs.cwd().access(custom_auth_path, .{});
 
@@ -748,7 +748,7 @@ test "Scenario: Given GEMINI_HOME override when running login then it stores aut
     defer gpa.free(default_auth_path);
     try std.testing.expectError(error.FileNotFound, fs.cwd().access(default_auth_path, .{}));
 
-    var loaded = try registry.loadRegistry(gpa, custom_codex_home);
+    var loaded = try registry.loadRegistry(gpa, custom_gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, expected_email));
@@ -771,7 +771,7 @@ test "Scenario: Given failed device auth login with existing auth json when runn
     const existing_auth = try fixtures.authJsonWithEmailPlan(gpa, "existing@example.com", "plus");
     defer gpa.free(existing_auth);
     try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = existing_auth });
-    try writeFailingFakeCodex(tmp.dir, 9);
+    try writeFailingFakeGemini(tmp.dir, 9);
 
     const fake_bin_path = try fs.path.join(gpa, &[_][]const u8{ home_root, "fake-bin" });
     defer gpa.free(fake_bin_path);
@@ -792,7 +792,7 @@ test "Scenario: Given failed device auth login with existing auth json when runn
     try std.testing.expectEqualStrings("", result.stdout);
     try std.testing.expectEqualStrings("", result.stderr);
 
-    const argv_path = try fs.path.join(gpa, &[_][]const u8{ home_root, "fake-codex-argv.txt" });
+    const argv_path = try fs.path.join(gpa, &[_][]const u8{ home_root, "fake-gemini-argv.txt" });
     defer gpa.free(argv_path);
     const argv_data = try fixtures.readFileAlloc(gpa, argv_path);
     defer gpa.free(argv_data);
@@ -839,9 +839,9 @@ test "Scenario: Given first-time use on v0.2 with an existing auth.json and no a
     try expectSuccess(result);
     try std.testing.expect(std.mem.indexOf(u8, result.stdout, email) != null);
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(loaded.active_account_key != null);
@@ -851,7 +851,7 @@ test "Scenario: Given first-time use on v0.2 with an existing auth.json and no a
     defer gpa.free(expected_account_id);
     try std.testing.expect(std.mem.eql(u8, loaded.active_account_key.?, expected_account_id));
 
-    const snapshot_path = try registry.accountAuthPath(gpa, codex_home, expected_account_id);
+    const snapshot_path = try registry.accountAuthPath(gpa, gemini_home, expected_account_id);
     defer gpa.free(snapshot_path);
     const snapshot_data = try fixtures.readFileAlloc(gpa, snapshot_path);
     defer gpa.free(snapshot_data);
@@ -926,9 +926,9 @@ test "Scenario: Given upgrade from v0.1.x to v0.2 with legacy accounts data when
             std.mem.indexOf(u8, result.stdout, "legacy") != null,
     );
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(u32, registry.current_schema_version), loaded.schema_version);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
@@ -939,7 +939,7 @@ test "Scenario: Given upgrade from v0.1.x to v0.2 with legacy accounts data when
     try std.testing.expect(std.mem.eql(u8, loaded.active_account_key.?, expected_account_id));
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].account_key, expected_account_id));
 
-    const migrated_path = try registry.accountAuthPath(gpa, codex_home, expected_account_id);
+    const migrated_path = try registry.accountAuthPath(gpa, gemini_home, expected_account_id);
     defer gpa.free(migrated_path);
     var migrated = try fs.cwd().openFile(migrated_path, .{});
     migrated.close();
@@ -1035,14 +1035,14 @@ test "Scenario: Given purge with no recoverable active auth when running import 
     defer gpa.free(home_root);
     try tmp.dir.makePath(".gemini/accounts");
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
 
     const zed_auth = try fixtures.authJsonWithEmailPlan(gpa, "zed@example.com", "team");
     defer gpa.free(zed_auth);
     const zed_key = try fixtures.accountKeyForEmailAlloc(gpa, "zed@example.com");
     defer gpa.free(zed_key);
-    const zed_snapshot_path = try registry.accountAuthPath(gpa, codex_home, zed_key);
+    const zed_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, zed_key);
     defer gpa.free(zed_snapshot_path);
     try fs.cwd().writeFile(.{ .sub_path = zed_snapshot_path, .data = zed_auth });
 
@@ -1050,7 +1050,7 @@ test "Scenario: Given purge with no recoverable active auth when running import 
     defer gpa.free(alpha_auth);
     const alpha_key = try fixtures.accountKeyForEmailAlloc(gpa, "alpha@example.com");
     defer gpa.free(alpha_key);
-    const alpha_snapshot_path = try registry.accountAuthPath(gpa, codex_home, alpha_key);
+    const alpha_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, alpha_key);
     defer gpa.free(alpha_snapshot_path);
     try fs.cwd().writeFile(.{ .sub_path = alpha_snapshot_path, .data = alpha_auth });
 
@@ -1095,7 +1095,7 @@ test "Scenario: Given purge with no recoverable active auth when running import 
     defer gpa.free(backup_contents);
     try std.testing.expectEqualStrings(stale_auth, backup_contents);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(loaded.active_account_key != null);
     try std.testing.expect(std.mem.eql(u8, loaded.active_account_key.?, alpha_key));
@@ -1229,9 +1229,9 @@ test "Scenario: Given directory import with an empty json file when running impo
     defer gpa.free(expected_stderr);
     try std.testing.expectEqualStrings(expected_stderr, result.stderr);
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, "still-imported@example.com"));
@@ -1278,9 +1278,9 @@ test "Scenario: Given directory import with a broken symlink when running import
     defer gpa.free(expected_stderr);
     try std.testing.expectEqualStrings(expected_stderr, result.stderr);
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, "symlink-survivor@example.com"));
@@ -1328,9 +1328,9 @@ test "Scenario: Given cpa directory in default location when running import cpa 
     defer gpa.free(expected_stderr);
     try std.testing.expectEqualStrings(expected_stderr, result.stderr);
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 2), loaded.accounts.items.len);
 }
@@ -1384,18 +1384,18 @@ test "Scenario: Given cpa file import when running import cpa then it stores a s
     try std.testing.expectEqualStrings(expected_stdout, result.stdout);
     try std.testing.expectEqualStrings("", result.stderr);
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const account_key = try fixtures.accountKeyForEmailAlloc(gpa, "single-file-cpa@example.com");
     defer gpa.free(account_key);
-    const snapshot_path = try registry.accountAuthPath(gpa, codex_home, account_key);
+    const snapshot_path = try registry.accountAuthPath(gpa, gemini_home, account_key);
     defer gpa.free(snapshot_path);
     const snapshot_data = try fixtures.readFileAlloc(gpa, snapshot_path);
     defer gpa.free(snapshot_data);
     try std.testing.expect(std.mem.indexOf(u8, snapshot_data, "\"tokens\": {") != null);
     try std.testing.expect(std.mem.indexOf(u8, snapshot_data, "\"refresh_token\": \"refresh-single-file-cpa@example.com\"") != null);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].alias, "personal"));
 }
@@ -1417,7 +1417,7 @@ test "Scenario: Given default api usage when rendering help then the api enable 
     defer gpa.free(result.stderr);
 
     try expectSuccess(result);
-    try std.testing.expect(std.mem.indexOf(u8, result.stdout, "codex-auth") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result.stdout, "gemini-auth") != null);
     try std.testing.expect(std.mem.indexOf(u8, result.stdout, "Usage API: ON (api)") != null);
     try std.testing.expect(std.mem.indexOf(u8, result.stdout, "Account API: ON") != null);
     try std.testing.expect(std.mem.indexOf(u8, result.stdout, "`config api enable` may trigger OpenAI account restrictions or suspension in some environments.") != null);
@@ -1441,8 +1441,8 @@ test "Scenario: Given switch query with a direct local match when running switch
         .{ .email = "backup@example.com", .alias = "backup" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
 
@@ -1450,9 +1450,9 @@ test "Scenario: Given switch query with a direct local match when running switch
     defer gpa.free(active_key);
     const backup_key = try fixtures.accountKeyForEmailAlloc(gpa, "backup@example.com");
     defer gpa.free(backup_key);
-    const active_snapshot_path = try registry.accountAuthPath(gpa, codex_home, active_key);
+    const active_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, active_key);
     defer gpa.free(active_snapshot_path);
-    const backup_snapshot_path = try registry.accountAuthPath(gpa, codex_home, backup_key);
+    const backup_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, backup_key);
     defer gpa.free(backup_snapshot_path);
 
     const active_auth = try fixtures.authJsonWithEmailPlan(gpa, "active@example.com", "team");
@@ -1486,7 +1486,7 @@ test "Scenario: Given switch query with a direct local match when running switch
     defer gpa.free(auth_after);
     try std.testing.expectEqualStrings(backup_auth, auth_after);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(loaded.active_account_key != null);
     try std.testing.expect(std.mem.eql(u8, loaded.active_account_key.?, backup_key));
@@ -1510,8 +1510,8 @@ test "Scenario: Given switch query with multiple matches when running switch the
         .{ .email = "solo@example.com", .alias = "solo" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
 
@@ -1519,9 +1519,9 @@ test "Scenario: Given switch query with multiple matches when running switch the
     defer gpa.free(alpha_key);
     const beta_key = try fixtures.accountKeyForEmailAlloc(gpa, "beta@example.com");
     defer gpa.free(beta_key);
-    const alpha_snapshot_path = try registry.accountAuthPath(gpa, codex_home, alpha_key);
+    const alpha_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, alpha_key);
     defer gpa.free(alpha_snapshot_path);
-    const beta_snapshot_path = try registry.accountAuthPath(gpa, codex_home, beta_key);
+    const beta_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, beta_key);
     defer gpa.free(beta_snapshot_path);
 
     const alpha_auth = try fixtures.authJsonWithEmailPlan(gpa, "alpha@example.com", "team");
@@ -1560,7 +1560,7 @@ test "Scenario: Given switch query with multiple matches when running switch the
     defer gpa.free(auth_after);
     try std.testing.expectEqualStrings(beta_auth, auth_after);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(loaded.active_account_key != null);
     try std.testing.expect(std.mem.eql(u8, loaded.active_account_key.?, beta_key));
@@ -1814,8 +1814,8 @@ test "Scenario: Given switch with skip-api when running interactively then it do
         0,
     );
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
 
@@ -1823,9 +1823,9 @@ test "Scenario: Given switch with skip-api when running interactively then it do
     defer gpa.free(active_key);
     const backup_key = try fixtures.accountKeyForEmailAlloc(gpa, "backup@example.com");
     defer gpa.free(backup_key);
-    const active_snapshot_path = try registry.accountAuthPath(gpa, codex_home, active_key);
+    const active_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, active_key);
     defer gpa.free(active_snapshot_path);
-    const backup_snapshot_path = try registry.accountAuthPath(gpa, codex_home, backup_key);
+    const backup_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, backup_key);
     defer gpa.free(backup_snapshot_path);
 
     const active_auth = try fixtures.authJsonWithEmailPlan(gpa, "active@example.com", "team");
@@ -1861,7 +1861,7 @@ test "Scenario: Given switch with skip-api when running interactively then it do
     defer gpa.free(auth_after);
     try std.testing.expectEqualStrings(backup_auth, auth_after);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(loaded.active_account_key != null);
     try std.testing.expect(std.mem.eql(u8, loaded.active_account_key.?, backup_key));
@@ -1884,16 +1884,16 @@ test "Scenario: Given remove query with one match when running remove then it de
         .{ .email = "keeper@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const removed_account_key = try fixtures.accountKeyForEmailAlloc(gpa, "robot09@example.com");
     defer gpa.free(removed_account_key);
     const keeper_account_key = try fixtures.accountKeyForEmailAlloc(gpa, "keeper@example.com");
     defer gpa.free(keeper_account_key);
 
-    const removed_snapshot_path = try registry.accountAuthPath(gpa, codex_home, removed_account_key);
+    const removed_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, removed_account_key);
     defer gpa.free(removed_snapshot_path);
-    const keeper_snapshot_path = try registry.accountAuthPath(gpa, codex_home, keeper_account_key);
+    const keeper_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, keeper_account_key);
     defer gpa.free(keeper_snapshot_path);
 
     const removed_auth = try fixtures.authJsonWithEmailPlan(gpa, "robot09@example.com", "plus");
@@ -1918,7 +1918,7 @@ test "Scenario: Given remove query with one match when running remove then it de
     );
     try std.testing.expectEqualStrings("", result.stderr);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, "keeper@example.com"));
@@ -1948,8 +1948,8 @@ test "Scenario: Given remove with account key selector when running remove then 
         .{ .email = "keeper@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const removed_account_key = try fixtures.accountKeyForEmailAlloc(gpa, "robot09@example.com");
     defer gpa.free(removed_account_key);
 
@@ -1967,7 +1967,7 @@ test "Scenario: Given remove with account key selector when running remove then 
     try std.testing.expect(std.mem.indexOf(u8, result.stdout, "robot09@example.com") != null);
     try std.testing.expectEqualStrings("", result.stderr);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, "keeper@example.com"));
@@ -1991,8 +1991,8 @@ test "Scenario: Given remove with multiple selectors when running remove then it
         .{ .email = "keeper@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
 
     const result = try runCliWithIsolatedHomeAndStdin(
         gpa,
@@ -2011,7 +2011,7 @@ test "Scenario: Given remove with multiple selectors when running remove then it
     );
     try std.testing.expectEqualStrings("", result.stderr);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, "beta@example.com"));
@@ -2181,8 +2181,8 @@ test "Scenario: Given remove without selectors and api disabled in config when r
     });
     try setRegistryApiConfig(gpa, home_root, false, false);
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
 
     try tmp.dir.makePath("empty-bin");
     const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
@@ -2203,7 +2203,7 @@ test "Scenario: Given remove without selectors and api disabled in config when r
     try std.testing.expect(std.mem.indexOf(u8, result.stdout, "Select accounts to delete:") != null);
     try std.testing.expectEqualStrings("", result.stderr);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, "alpha@example.com"));
@@ -2263,8 +2263,8 @@ test "Scenario: Given active account removal with a replacement when running rem
         .{ .email = "backup@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
 
@@ -2272,9 +2272,9 @@ test "Scenario: Given active account removal with a replacement when running rem
     defer gpa.free(active_key);
     const backup_key = try fixtures.accountKeyForEmailAlloc(gpa, "backup@example.com");
     defer gpa.free(backup_key);
-    const active_snapshot_path = try registry.accountAuthPath(gpa, codex_home, active_key);
+    const active_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, active_key);
     defer gpa.free(active_snapshot_path);
-    const backup_snapshot_path = try registry.accountAuthPath(gpa, codex_home, backup_key);
+    const backup_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, backup_key);
     defer gpa.free(backup_snapshot_path);
 
     const active_auth = try fixtures.authJsonWithEmailPlan(gpa, "active@example.com", "pro");
@@ -2317,8 +2317,8 @@ test "Scenario: Given active account removal with missing auth json when running
         .{ .email = "backup@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
 
@@ -2326,9 +2326,9 @@ test "Scenario: Given active account removal with missing auth json when running
     defer gpa.free(active_key);
     const backup_key = try fixtures.accountKeyForEmailAlloc(gpa, "backup@example.com");
     defer gpa.free(backup_key);
-    const active_snapshot_path = try registry.accountAuthPath(gpa, codex_home, active_key);
+    const active_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, active_key);
     defer gpa.free(active_snapshot_path);
-    const backup_snapshot_path = try registry.accountAuthPath(gpa, codex_home, backup_key);
+    const backup_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, backup_key);
     defer gpa.free(backup_snapshot_path);
 
     const active_auth = try fixtures.authJsonWithEmailPlan(gpa, "active@example.com", "pro");
@@ -2368,8 +2368,8 @@ test "Scenario: Given missing auth json and no valid active key when running rem
         .{ .email = "backup@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
 
@@ -2377,9 +2377,9 @@ test "Scenario: Given missing auth json and no valid active key when running rem
     defer gpa.free(active_key);
     const backup_key = try fixtures.accountKeyForEmailAlloc(gpa, "backup@example.com");
     defer gpa.free(backup_key);
-    const active_snapshot_path = try registry.accountAuthPath(gpa, codex_home, active_key);
+    const active_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, active_key);
     defer gpa.free(active_snapshot_path);
-    const backup_snapshot_path = try registry.accountAuthPath(gpa, codex_home, backup_key);
+    const backup_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, backup_key);
     defer gpa.free(backup_snapshot_path);
 
     const active_auth = try fixtures.authJsonWithEmailPlan(gpa, "active@example.com", "pro");
@@ -2389,14 +2389,14 @@ test "Scenario: Given missing auth json and no valid active key when running rem
     try fs.cwd().writeFile(.{ .sub_path = active_snapshot_path, .data = active_auth });
     try fs.cwd().writeFile(.{ .sub_path = backup_snapshot_path, .data = backup_auth });
 
-    var reg = try registry.loadRegistry(gpa, codex_home);
+    var reg = try registry.loadRegistry(gpa, gemini_home);
     defer reg.deinit(gpa);
     if (reg.active_account_key) |key| {
         gpa.free(key);
         reg.active_account_key = null;
     }
     reg.active_account_activated_at_ms = null;
-    try registry.saveRegistry(gpa, codex_home, &reg);
+    try registry.saveRegistry(gpa, gemini_home, &reg);
 
     const result = try runCliWithIsolatedHomeAndStdin(gpa, project_root, home_root, &[_][]const u8{ "remove", "active@" }, "");
     defer gpa.free(result.stdout);
@@ -2410,7 +2410,7 @@ test "Scenario: Given missing auth json and no valid active key when running rem
     defer gpa.free(recreated_auth);
     try std.testing.expectEqualStrings(backup_auth, recreated_auth);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(loaded.active_account_key != null);
@@ -2439,8 +2439,8 @@ test "Scenario: Given auth json already points at another registry account when 
     const path_override = try prependPathEntryAlloc(gpa, fake_node_dir);
     defer gpa.free(path_override);
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
 
@@ -2448,9 +2448,9 @@ test "Scenario: Given auth json already points at another registry account when 
     defer gpa.free(alpha_key);
     const beta_key = try fixtures.accountKeyForEmailAlloc(gpa, "beta@example.com");
     defer gpa.free(beta_key);
-    const alpha_snapshot_path = try registry.accountAuthPath(gpa, codex_home, alpha_key);
+    const alpha_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, alpha_key);
     defer gpa.free(alpha_snapshot_path);
-    const beta_snapshot_path = try registry.accountAuthPath(gpa, codex_home, beta_key);
+    const beta_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, beta_key);
     defer gpa.free(beta_snapshot_path);
 
     const alpha_auth = try fixtures.authJsonWithEmailPlan(gpa, "alpha@example.com", "team");
@@ -2473,7 +2473,7 @@ test "Scenario: Given auth json already points at another registry account when 
     defer gpa.free(auth_after_remove);
     try std.testing.expectEqualStrings(alpha_auth, auth_after_remove);
 
-    var loaded_after_remove = try registry.loadRegistry(gpa, codex_home);
+    var loaded_after_remove = try registry.loadRegistry(gpa, gemini_home);
     defer loaded_after_remove.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded_after_remove.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded_after_remove.accounts.items[0].email, "alpha@example.com"));
@@ -2488,7 +2488,7 @@ test "Scenario: Given auth json already points at another registry account when 
     try std.testing.expect(std.mem.indexOf(u8, list_result.stdout, "alpha@example.com") != null);
     try std.testing.expect(std.mem.indexOf(u8, list_result.stdout, "beta@example.com") == null);
 
-    var loaded_after_list = try registry.loadRegistry(gpa, codex_home);
+    var loaded_after_list = try registry.loadRegistry(gpa, gemini_home);
     defer loaded_after_list.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded_after_list.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded_after_list.accounts.items[0].email, "alpha@example.com"));
@@ -2592,9 +2592,9 @@ test "Scenario: Given non-tty remove with invalid selection input when running r
         result.stderr,
     );
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 2), loaded.accounts.items.len);
 }
@@ -2632,9 +2632,9 @@ test "Scenario: Given remove query with multiple matches in non-tty mode when ru
         result.stderr,
     );
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 3), loaded.accounts.items.len);
 }
@@ -2672,9 +2672,9 @@ test "Scenario: Given remove fuzzy selector with multiple matches when running r
         result.stderr,
     );
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 3), loaded.accounts.items.len);
 }
@@ -2691,15 +2691,15 @@ test "Scenario: Given remove query with duplicate-email accounts when running re
     const home_root = try tmp.dir.realpathAlloc(gpa, ".");
     defer gpa.free(home_root);
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
     try appendCustomAccount(gpa, &reg, "user-a::acct-work", "alice@example.com", "work", .team);
     try appendCustomAccount(gpa, &reg, "user-b::acct-personal", "alice@example.com", "personal", .plus);
     reg.active_account_key = try gpa.dupe(u8, "user-a::acct-work");
     reg.active_account_activated_at_ms = std.Io.Timestamp.now(app_runtime.io(), .real).toMilliseconds();
-    try registry.saveRegistry(gpa, codex_home, &reg);
+    try registry.saveRegistry(gpa, gemini_home, &reg);
 
     const result = try runCliWithIsolatedHomeAndStdin(gpa, project_root, home_root, &[_][]const u8{ "remove", "alice@" }, "y\n");
     defer gpa.free(result.stdout);
@@ -2732,13 +2732,13 @@ test "Scenario: Given remove query deletes the final active account when running
         .{ .email = "solo@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
     const account_key = try fixtures.accountKeyForEmailAlloc(gpa, "solo@example.com");
     defer gpa.free(account_key);
-    const snapshot_path = try registry.accountAuthPath(gpa, codex_home, account_key);
+    const snapshot_path = try registry.accountAuthPath(gpa, gemini_home, account_key);
     defer gpa.free(snapshot_path);
 
     const solo_auth = try fixtures.authJsonWithEmailPlan(gpa, "solo@example.com", "pro");
@@ -2757,7 +2757,7 @@ test "Scenario: Given remove query deletes the final active account when running
     );
     try std.testing.expectEqualStrings("", result.stderr);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 0), loaded.accounts.items.len);
     try std.testing.expect(loaded.active_account_key == null);
@@ -2811,8 +2811,8 @@ test "Scenario: Given remove all when running remove then it clears all accounts
         .{ .email = "beta@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
     const active_auth = try fixtures.authJsonWithEmailPlan(gpa, "alpha@example.com", "pro");
@@ -2827,7 +2827,7 @@ test "Scenario: Given remove all when running remove then it clears all accounts
     try std.testing.expect(std.mem.indexOf(u8, result.stdout, "Removed 2 account(s): ") != null);
     try std.testing.expectEqualStrings("", result.stderr);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 0), loaded.accounts.items.len);
     try std.testing.expect(loaded.active_account_key == null);
@@ -2851,8 +2851,8 @@ test "Scenario: Given remove all with malformed auth json when running remove th
         .{ .email = "beta@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
     try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = "{\"broken\":true}" });
@@ -2865,7 +2865,7 @@ test "Scenario: Given remove all with malformed auth json when running remove th
     try std.testing.expect(std.mem.indexOf(u8, result.stdout, "Removed 2 account(s): ") != null);
     try std.testing.expectEqualStrings("warning: auth.json missing email; skipping sync\n", result.stderr);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 0), loaded.accounts.items.len);
     try std.testing.expect(loaded.active_account_key == null);
@@ -2892,22 +2892,22 @@ test "Scenario: Given remove all with tracked auth json and no active key when r
         .{ .email = "beta@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
     const alpha_auth = try fixtures.authJsonWithEmailPlan(gpa, "alpha@example.com", "pro");
     defer gpa.free(alpha_auth);
     try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = alpha_auth });
 
-    var reg = try registry.loadRegistry(gpa, codex_home);
+    var reg = try registry.loadRegistry(gpa, gemini_home);
     defer reg.deinit(gpa);
     if (reg.active_account_key) |key| {
         gpa.free(key);
         reg.active_account_key = null;
     }
     reg.active_account_activated_at_ms = null;
-    try registry.saveRegistry(gpa, codex_home, &reg);
+    try registry.saveRegistry(gpa, gemini_home, &reg);
 
     const result = try runCliWithIsolatedHomeAndStdin(gpa, project_root, home_root, &[_][]const u8{ "remove", "--all" }, "");
     defer gpa.free(result.stdout);
@@ -2917,7 +2917,7 @@ test "Scenario: Given remove all with tracked auth json and no active key when r
     try std.testing.expect(std.mem.indexOf(u8, result.stdout, "Removed 2 account(s): ") != null);
     try std.testing.expectEqualStrings("", result.stderr);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 0), loaded.accounts.items.len);
     try std.testing.expect(loaded.active_account_key == null);
@@ -2941,22 +2941,22 @@ test "Scenario: Given remove all with tracked auth json and stale active key whe
         .{ .email = "beta@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
     const alpha_auth = try fixtures.authJsonWithEmailPlan(gpa, "alpha@example.com", "pro");
     defer gpa.free(alpha_auth);
     try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = alpha_auth });
 
-    var reg = try registry.loadRegistry(gpa, codex_home);
+    var reg = try registry.loadRegistry(gpa, gemini_home);
     defer reg.deinit(gpa);
     if (reg.active_account_key) |key| {
         gpa.free(key);
     }
     reg.active_account_key = try gpa.dupe(u8, "user-stale::acct-stale");
     reg.active_account_activated_at_ms = std.Io.Timestamp.now(app_runtime.io(), .real).toMilliseconds();
-    try registry.saveRegistry(gpa, codex_home, &reg);
+    try registry.saveRegistry(gpa, gemini_home, &reg);
 
     const result = try runCliWithIsolatedHomeAndStdin(gpa, project_root, home_root, &[_][]const u8{ "remove", "--all" }, "");
     defer gpa.free(result.stdout);
@@ -2966,7 +2966,7 @@ test "Scenario: Given remove all with tracked auth json and stale active key whe
     try std.testing.expect(std.mem.indexOf(u8, result.stdout, "Removed 2 account(s): ") != null);
     try std.testing.expectEqualStrings("", result.stderr);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 0), loaded.accounts.items.len);
     try std.testing.expect(loaded.active_account_key == null);
@@ -2990,8 +2990,8 @@ test "Scenario: Given unsynced active auth when removing the active registry acc
         .{ .email = "backup@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
 
@@ -2999,9 +2999,9 @@ test "Scenario: Given unsynced active auth when removing the active registry acc
     defer gpa.free(active_key);
     const backup_key = try fixtures.accountKeyForEmailAlloc(gpa, "backup@example.com");
     defer gpa.free(backup_key);
-    const active_snapshot_path = try registry.accountAuthPath(gpa, codex_home, active_key);
+    const active_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, active_key);
     defer gpa.free(active_snapshot_path);
-    const backup_snapshot_path = try registry.accountAuthPath(gpa, codex_home, backup_key);
+    const backup_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, backup_key);
     defer gpa.free(backup_snapshot_path);
 
     const active_auth = try fixtures.authJsonWithEmailPlan(gpa, "active@example.com", "pro");
@@ -3024,7 +3024,7 @@ test "Scenario: Given unsynced active auth when removing the active registry acc
     defer gpa.free(auth_after);
     try std.testing.expectEqualStrings("{\"broken\":true}", auth_after);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(loaded.active_account_key != null);
@@ -3048,8 +3048,8 @@ test "Scenario: Given parseable auth without email for the active account when r
         .{ .email = "backup@example.com", .alias = "" },
     });
 
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
 
@@ -3057,9 +3057,9 @@ test "Scenario: Given parseable auth without email for the active account when r
     defer gpa.free(active_key);
     const backup_key = try fixtures.accountKeyForEmailAlloc(gpa, "backup@example.com");
     defer gpa.free(backup_key);
-    const active_snapshot_path = try registry.accountAuthPath(gpa, codex_home, active_key);
+    const active_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, active_key);
     defer gpa.free(active_snapshot_path);
-    const backup_snapshot_path = try registry.accountAuthPath(gpa, codex_home, backup_key);
+    const backup_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, backup_key);
     defer gpa.free(backup_snapshot_path);
 
     const missing_email_auth = try fixtures.authJsonWithoutEmailForEmail(gpa, "active@example.com", "pro");
@@ -3084,7 +3084,7 @@ test "Scenario: Given parseable auth without email for the active account when r
     defer gpa.free(auth_after);
     try std.testing.expectEqualStrings(missing_email_auth, auth_after);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(loaded.active_account_key != null);
@@ -3125,8 +3125,8 @@ test "Scenario: Given config live interval when running command then registry an
 
     const home_root = try tmp.dir.realpathAlloc(gpa, ".");
     defer gpa.free(home_root);
-    const codex_home = try codexHomeAlloc(gpa, home_root);
-    defer gpa.free(codex_home);
+    const gemini_home = try geminiHomeAlloc(gpa, home_root);
+    defer gpa.free(gemini_home);
 
     const config_result = try runCliWithIsolatedHome(gpa, project_root, home_root, &[_][]const u8{ "config", "live", "--interval", "45" });
     defer gpa.free(config_result.stdout);
@@ -3135,7 +3135,7 @@ test "Scenario: Given config live interval when running command then registry an
     try std.testing.expectEqualStrings("Live refresh interval: 45s\n", config_result.stdout);
     try std.testing.expectEqualStrings("", config_result.stderr);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(u16, 45), loaded.live.interval_seconds);
 

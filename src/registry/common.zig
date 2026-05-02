@@ -328,30 +328,30 @@ pub fn resolveExistingGeminiHomeOverride(allocator: std.mem.Allocator, path: []c
     const stat = std.Io.Dir.cwd().statFile(app_runtime.io(), path, .{}) catch |err| switch (err) {
         error.IsDir => {
             return realPathAlloc(allocator, path) catch |realpath_err| {
-                logCodexHomeResolutionError("failed to canonicalize GEMINI_HOME `{s}`: {s}", .{ path, @errorName(realpath_err) });
+                logGeminiHomeResolutionError("failed to canonicalize GEMINI_HOME `{s}`: {s}", .{ path, @errorName(realpath_err) });
                 return realpath_err;
             };
         },
         error.FileNotFound => {
-            logCodexHomeResolutionError("GEMINI_HOME points to `{s}`, but that path does not exist", .{path});
+            logGeminiHomeResolutionError("GEMINI_HOME points to `{s}`, but that path does not exist", .{path});
             return err;
         },
         else => {
-            logCodexHomeResolutionError("failed to read GEMINI_HOME `{s}`: {s}", .{ path, @errorName(err) });
+            logGeminiHomeResolutionError("failed to read GEMINI_HOME `{s}`: {s}", .{ path, @errorName(err) });
             return err;
         },
     };
     if (stat.kind != .directory) {
-        logCodexHomeResolutionError("GEMINI_HOME points to `{s}`, but that path is not a directory", .{path});
+        logGeminiHomeResolutionError("GEMINI_HOME points to `{s}`, but that path is not a directory", .{path});
         return error.NotDir;
     }
     return realPathAlloc(allocator, path) catch |err| {
-        logCodexHomeResolutionError("failed to canonicalize GEMINI_HOME `{s}`: {s}", .{ path, @errorName(err) });
+        logGeminiHomeResolutionError("failed to canonicalize GEMINI_HOME `{s}`: {s}", .{ path, @errorName(err) });
         return err;
     };
 }
 
-pub fn logCodexHomeResolutionError(
+pub fn logGeminiHomeResolutionError(
     comptime fmt: []const u8,
     args: anytype,
 ) void {

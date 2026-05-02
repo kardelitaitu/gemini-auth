@@ -19,7 +19,7 @@ function ensureSupportedNodeVersion() {
   }
 
   console.error(
-    `Node.js ${requiredNodeMajor}+ is required to run @loongphy/codex-auth. Current version: ${process.version}.`
+    `Node.js ${requiredNodeMajor}+ is required to run @loongphy/gemini-auth. Current version: ${process.version}.`
   );
   process.exit(1);
 }
@@ -27,12 +27,12 @@ function ensureSupportedNodeVersion() {
 ensureSupportedNodeVersion();
 
 const packageMap = {
-  "linux:x64": "@loongphy/codex-auth-linux-x64",
-  "linux:arm64": "@loongphy/codex-auth-linux-arm64",
-  "darwin:x64": "@loongphy/codex-auth-darwin-x64",
-  "darwin:arm64": "@loongphy/codex-auth-darwin-arm64",
-  "win32:x64": "@loongphy/codex-auth-win32-x64",
-  "win32:arm64": "@loongphy/codex-auth-win32-arm64"
+  "linux:x64": "@loongphy/gemini-auth-linux-x64",
+  "linux:arm64": "@loongphy/gemini-auth-linux-arm64",
+  "darwin:x64": "@loongphy/gemini-auth-darwin-x64",
+  "darwin:arm64": "@loongphy/gemini-auth-darwin-arm64",
+  "win32:x64": "@loongphy/gemini-auth-win32-x64",
+  "win32:arm64": "@loongphy/gemini-auth-win32-arm64"
 };
 
 function readRootPackage() {
@@ -50,11 +50,11 @@ function maybePrintPreviewVersion(argv) {
   const rootPackage = readRootPackage();
   if (!rootPackage) return false;
 
-  const previewLabel = rootPackage.codexAuthPreviewLabel;
+  const previewLabel = rootPackage.geminiAuthPreviewLabel;
   if (typeof previewLabel !== "string" || previewLabel.length === 0) return false;
   if (typeof rootPackage.version !== "string" || rootPackage.version.length === 0) return false;
 
-  process.stdout.write(`codex-auth ${rootPackage.version} (preview ${previewLabel})\n`);
+  process.stdout.write(`gemini-auth ${rootPackage.version} (preview ${previewLabel})\n`);
   return true;
 }
 
@@ -72,7 +72,7 @@ function resolveBinary() {
 
   try {
     const packageRoot = path.dirname(require.resolve(`${packageName}/package.json`));
-    const binaryName = process.platform === "win32" ? "codex-auth.exe" : "codex-auth";
+    const binaryName = process.platform === "win32" ? "gemini-auth.exe" : "gemini-auth";
     const binaryPath = path.join(packageRoot, "bin", binaryName);
     if (!fs.existsSync(binaryPath)) {
       console.error(`Missing binary inside ${packageName}: ${binaryPath}`);
@@ -81,7 +81,7 @@ function resolveBinary() {
     return binaryPath;
   } catch (error) {
     console.error(
-      `Missing platform package ${packageName}. Reinstall @loongphy/codex-auth on ${process.platform}/${process.arch}.`
+      `Missing platform package ${packageName}. Reinstall @loongphy/gemini-auth on ${process.platform}/${process.arch}.`
     );
     if (error && error.message) {
       console.error(error.message);

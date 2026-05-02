@@ -1,9 +1,9 @@
 const builtin = @import("builtin");
 const std = @import("std");
-const codex_auth = @import("codex_auth");
+const gemini_auth = @import("gemini_auth");
 
-const app_runtime = codex_auth.core.runtime;
-const http = codex_auth.api.http;
+const app_runtime = gemini_auth.core.runtime;
+const http = gemini_auth.api.http;
 const BatchItemOutcome = http.BatchItemOutcome;
 const NodeOutcome = http.NodeOutcome;
 const default_max_output_bytes = http.default_max_output_bytes;

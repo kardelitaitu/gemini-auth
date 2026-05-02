@@ -116,8 +116,8 @@ test "Scenario: Given legacy version key current-layout registry when loading th
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
     try tmp.dir.writeFile(.{
         .sub_path = "accounts/registry.json",
@@ -133,7 +133,7 @@ test "Scenario: Given legacy version key current-layout registry when loading th
         ,
     });
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(loaded.auto_switch.enabled);
     try std.testing.expect(loaded.schema_version == registry.current_schema_version);
@@ -151,8 +151,8 @@ test "Scenario: Given newer schema version when loading then it is rejected" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
     try tmp.dir.writeFile(.{
         .sub_path = "accounts/registry.json",
@@ -164,7 +164,7 @@ test "Scenario: Given newer schema version when loading then it is rejected" {
         ,
     });
 
-    try std.testing.expectError(error.UnsupportedRegistryVersion, registry.loadRegistry(gpa, codex_home));
+    try std.testing.expectError(error.UnsupportedRegistryVersion, registry.loadRegistry(gpa, gemini_home));
 }
 
 test "Scenario: Given v2 registry when loading then it migrates to record-key layout and rewrites schema_version" {
@@ -172,8 +172,8 @@ test "Scenario: Given v2 registry when loading then it migrates to record-key la
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     const email = "legacy@example.com";
@@ -215,7 +215,7 @@ test "Scenario: Given v2 registry when loading then it migrates to record-key la
         ,
     });
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(loaded.schema_version == registry.current_schema_version);
     try std.testing.expect(loaded.accounts.items.len == 1);
@@ -232,7 +232,7 @@ test "Scenario: Given v2 registry when loading then it migrates to record-key la
     try std.testing.expectEqual(@as(f64, 25.0), loaded.accounts.items[0].last_usage.?.primary.?.used_percent);
     try std.testing.expectEqual(registry.PlanType.team, loaded.accounts.items[0].last_usage.?.plan_type.?);
 
-    const migrated_path = try registry.accountAuthPath(gpa, codex_home, account_id);
+    const migrated_path = try registry.accountAuthPath(gpa, gemini_home, account_id);
     defer gpa.free(migrated_path);
     var migrated = try fs.cwd().openFile(migrated_path, .{});
     migrated.close();
@@ -253,8 +253,8 @@ test "Scenario: Given purge import with file when rebuilding then current auth i
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
     try tmp.dir.makePath("imports");
 
@@ -306,13 +306,13 @@ test "Scenario: Given purge import with file when rebuilding then current auth i
         ,
     });
 
-    const import_path = try fs.path.join(gpa, &[_][]const u8{ codex_home, "imports", "personal.json" });
+    const import_path = try fs.path.join(gpa, &[_][]const u8{ gemini_home, "imports", "personal.json" });
     defer gpa.free(import_path);
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, import_path, "personal");
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, import_path, "personal");
     defer report.deinit(gpa);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(loaded.accounts.items.len == 2);
     try std.testing.expect(loaded.auto_switch.enabled);
@@ -349,8 +349,8 @@ test "Scenario: Given purge with newer schema registry when rebuilding then auto
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
     try tmp.dir.makePath("imports");
 
@@ -376,13 +376,13 @@ test "Scenario: Given purge with newer schema registry when rebuilding then auto
         ,
     });
 
-    const import_path = try fs.path.join(gpa, &[_][]const u8{ codex_home, "imports", "personal.json" });
+    const import_path = try fs.path.join(gpa, &[_][]const u8{ gemini_home, "imports", "personal.json" });
     defer gpa.free(import_path);
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, import_path, "personal");
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, import_path, "personal");
     defer report.deinit(gpa);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(loaded.auto_switch.enabled);
     try std.testing.expectEqual(@as(u8, 18), loaded.auto_switch.threshold_5h_percent);
@@ -396,8 +396,8 @@ test "Scenario: Given purge with malformed registry when rebuilding then auto an
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
     try tmp.dir.makePath("imports");
 
@@ -422,13 +422,13 @@ test "Scenario: Given purge with malformed registry when rebuilding then auto an
         ,
     });
 
-    const import_path = try fs.path.join(gpa, &[_][]const u8{ codex_home, "imports", "personal.json" });
+    const import_path = try fs.path.join(gpa, &[_][]const u8{ gemini_home, "imports", "personal.json" });
     defer gpa.free(import_path);
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, import_path, "personal");
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, import_path, "personal");
     defer report.deinit(gpa);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(loaded.auto_switch.enabled);
     try std.testing.expectEqual(@as(u8, 13), loaded.auto_switch.threshold_5h_percent);
@@ -442,15 +442,15 @@ test "Scenario: Given purge without path when rebuilding then it scans account s
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     const snapshot_auth = try authJsonWithEmailPlan(gpa, "snap@example.com", "pro");
     defer gpa.free(snapshot_auth);
     const snapshot_account_id = try accountKeyForEmailAlloc(gpa, "snap@example.com");
     defer gpa.free(snapshot_account_id);
-    const snapshot_path = try registry.accountAuthPath(gpa, codex_home, snapshot_account_id);
+    const snapshot_path = try registry.accountAuthPath(gpa, gemini_home, snapshot_account_id);
     defer gpa.free(snapshot_path);
     const snapshot_name = fs.path.basename(snapshot_path);
     const snapshot_rel = try fs.path.join(gpa, &[_][]const u8{ "accounts", snapshot_name });
@@ -459,10 +459,10 @@ test "Scenario: Given purge without path when rebuilding then it scans account s
     try tmp.dir.writeFile(.{ .sub_path = "accounts/registry.json", .data = "{\"bad\":\"registry\"}" });
     try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.1", .data = "backup" });
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, null, null);
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(loaded.accounts.items.len == 1);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, "snap@example.com"));
@@ -473,18 +473,18 @@ test "Scenario: Given purge without path and only auth backups when rebuilding t
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     const backup_auth = try authJsonWithEmailPlan(gpa, "backup-only@example.com", "team");
     defer gpa.free(backup_auth);
     try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-010101", .data = backup_auth });
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, null, null);
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, "backup-only@example.com"));
@@ -493,7 +493,7 @@ test "Scenario: Given purge without path and only auth backups when rebuilding t
     defer gpa.free(record_key);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].account_key, record_key));
 
-    const snapshot_path = try registry.accountAuthPath(gpa, codex_home, record_key);
+    const snapshot_path = try registry.accountAuthPath(gpa, gemini_home, record_key);
     defer gpa.free(snapshot_path);
     var snapshot = try fs.cwd().openFile(snapshot_path, .{});
     snapshot.close();
@@ -504,17 +504,17 @@ test "Scenario: Given purge without a recoverable active auth when rebuilding th
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     const zed_auth = try authJsonWithEmailPlan(gpa, "zed@example.com", "team");
     defer gpa.free(zed_auth);
     const zed_record_key = try accountKeyForEmailAlloc(gpa, "zed@example.com");
     defer gpa.free(zed_record_key);
-    const zed_snapshot_path = try registry.accountAuthPath(gpa, codex_home, zed_record_key);
+    const zed_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, zed_record_key);
     defer gpa.free(zed_snapshot_path);
-    const zed_snapshot_rel = try std.fs.path.relative(gpa, codex_home, null, codex_home, zed_snapshot_path);
+    const zed_snapshot_rel = try std.fs.path.relative(gpa, gemini_home, null, gemini_home, zed_snapshot_path);
     defer gpa.free(zed_snapshot_rel);
     try tmp.dir.writeFile(.{ .sub_path = zed_snapshot_rel, .data = zed_auth });
 
@@ -522,29 +522,29 @@ test "Scenario: Given purge without a recoverable active auth when rebuilding th
     defer gpa.free(alpha_auth);
     const alpha_record_key = try accountKeyForEmailAlloc(gpa, "alpha@example.com");
     defer gpa.free(alpha_record_key);
-    const alpha_snapshot_path = try registry.accountAuthPath(gpa, codex_home, alpha_record_key);
+    const alpha_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, alpha_record_key);
     defer gpa.free(alpha_snapshot_path);
-    const alpha_snapshot_rel = try std.fs.path.relative(gpa, codex_home, null, codex_home, alpha_snapshot_path);
+    const alpha_snapshot_rel = try std.fs.path.relative(gpa, gemini_home, null, gemini_home, alpha_snapshot_path);
     defer gpa.free(alpha_snapshot_rel);
     try tmp.dir.writeFile(.{ .sub_path = alpha_snapshot_rel, .data = alpha_auth });
 
     const stale_auth = "{\"broken\":true}";
     try tmp.dir.writeFile(.{ .sub_path = "auth.json", .data = stale_auth });
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, null, null);
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
 
     try std.testing.expectEqual(@as(usize, 2), report.imported);
     try std.testing.expectEqual(@as(usize, 0), report.updated);
     try std.testing.expectEqual(@as(usize, 0), report.skipped);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 2), loaded.accounts.items.len);
     try std.testing.expect(loaded.active_account_key != null);
     try std.testing.expect(std.mem.eql(u8, loaded.active_account_key.?, alpha_record_key));
 
-    const active_auth_path = try registry.activeAuthPath(gpa, codex_home);
+    const active_auth_path = try registry.activeAuthPath(gpa, gemini_home);
     defer gpa.free(active_auth_path);
     var active_file = try fs.cwd().openFile(active_auth_path, .{});
     defer active_file.close();
@@ -584,8 +584,8 @@ test "Scenario: Given purge without path and an empty snapshot when rebuilding t
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     const backup_auth = try authJsonWithEmailPlan(gpa, "backup-valid@example.com", "team");
@@ -593,7 +593,7 @@ test "Scenario: Given purge without path and an empty snapshot when rebuilding t
     try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-010101", .data = backup_auth });
     try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-020202", .data = "" });
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, null, null);
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
 
     try std.testing.expectEqual(@as(usize, 1), report.imported);
@@ -609,7 +609,7 @@ test "Scenario: Given purge without path and an empty snapshot when rebuilding t
     }
     try std.testing.expect(found_malformed);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, "backup-valid@example.com"));
@@ -622,8 +622,8 @@ test "Scenario: Given purge without path and a broken snapshot symlink when rebu
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     const backup_auth = try authJsonWithEmailPlan(gpa, "backup-symlink@example.com", "team");
@@ -631,7 +631,7 @@ test "Scenario: Given purge without path and a broken snapshot symlink when rebu
     try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-010101", .data = backup_auth });
     try tmp.dir.symLink("missing.auth.json", "accounts/auth.json.bak.20260317-020202", .{});
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, null, null);
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
 
     try std.testing.expectEqual(@as(usize, 1), report.imported);
@@ -647,7 +647,7 @@ test "Scenario: Given purge without path and a broken snapshot symlink when rebu
     }
     try std.testing.expect(found_missing);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 1), loaded.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, "backup-symlink@example.com"));
@@ -658,8 +658,8 @@ test "Scenario: Given purge without path and duplicate snapshots when rebuilding
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     const duplicate_record_key = "1::acct1";
@@ -669,9 +669,9 @@ test "Scenario: Given purge without path and duplicate snapshots when rebuilding
 
     const current_snapshot_auth = try authJsonWithExplicitIds(gpa, "zed@example.com", "acct1", "1", "team");
     defer gpa.free(current_snapshot_auth);
-    const current_snapshot_path = try registry.accountAuthPath(gpa, codex_home, duplicate_record_key);
+    const current_snapshot_path = try registry.accountAuthPath(gpa, gemini_home, duplicate_record_key);
     defer gpa.free(current_snapshot_path);
-    const current_snapshot_rel = try std.fs.path.relative(gpa, codex_home, null, codex_home, current_snapshot_path);
+    const current_snapshot_rel = try std.fs.path.relative(gpa, gemini_home, null, gemini_home, current_snapshot_path);
     defer gpa.free(current_snapshot_rel);
     try tmp.dir.writeFile(.{
         .sub_path = current_snapshot_rel,
@@ -682,10 +682,10 @@ test "Scenario: Given purge without path and duplicate snapshots when rebuilding
     defer gpa.free(alpha_auth);
     try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-020202", .data = alpha_auth });
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, null, null);
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 2), loaded.accounts.items.len);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[0].email, "alpha@example.com"));
@@ -706,8 +706,8 @@ test "Scenario: Given same team account id across different users when purging t
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     const shared_chatgpt_account_id = "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf";
@@ -732,10 +732,10 @@ test "Scenario: Given same team account id across different users when purging t
     defer gpa.free(second_auth);
     try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-171806", .data = second_auth });
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, null, null);
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 2), loaded.accounts.items.len);
 
@@ -759,8 +759,8 @@ test "Scenario: Given same user across team and free workspaces when purging the
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
     const shared_chatgpt_user_id = "user-NuLAf1g5RIAwHDQxfoHfgcPo";
@@ -786,10 +786,10 @@ test "Scenario: Given same user across team and free workspaces when purging the
     defer gpa.free(free_auth);
     try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-172239", .data = free_auth });
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, null, null);
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 2), loaded.accounts.items.len);
 
@@ -815,17 +815,17 @@ test "Scenario: Given purge without accounts directory when rebuilding then curr
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try tmp.dir.realpathAlloc(gpa, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    defer gpa.free(gemini_home);
 
     const active_auth = try authJsonWithEmailPlan(gpa, "active@example.com", "team");
     defer gpa.free(active_auth);
     try tmp.dir.writeFile(.{ .sub_path = "auth.json", .data = active_auth });
 
-    var report = try registry.purgeRegistryFromImportSource(gpa, codex_home, null, null);
+    var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
 
-    var loaded = try registry.loadRegistry(gpa, codex_home);
+    var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
     try std.testing.expect(loaded.accounts.items.len == 1);
     try std.testing.expect(loaded.active_account_key != null);

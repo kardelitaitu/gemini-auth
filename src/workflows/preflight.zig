@@ -18,7 +18,7 @@ const loadActiveAuthInfoForAccountRefresh = account_names.loadActiveAuthInfoForA
 
 pub fn isHandledCliError(err: anyerror) bool {
     return err == error.AccountNotFound or
-        err == error.CodexLoginFailed or
+        err == error.GeminiLoginFailed or
         err == error.ListLiveRequiresTty or
         err == error.TuiOutputUnavailable or
         err == error.NodeJsRequired or

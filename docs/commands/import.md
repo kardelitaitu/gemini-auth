@@ -1,11 +1,11 @@
-# `codex-auth import`
+# `gemini-auth import`
 
 ## Usage
 
 ```shell
-codex-auth import <path> [--alias <alias>]
-codex-auth import --cpa [<path>] [--alias <alias>]
-codex-auth import --purge [<path>]
+gemini-auth import <path> [--alias <alias>]
+gemini-auth import --cpa [<path>] [--alias <alias>]
+gemini-auth import --purge [<path>]
 ```
 
 ## Standard Import
@@ -30,9 +30,9 @@ codex-auth import --purge [<path>]
 
 `--purge` rebuilds `registry.json` from existing auth snapshots.
 
-- Without a path, it scans `~/.codex/accounts/`.
+- Without a path, it scans `~/.gemini/accounts/`.
 - With a path, it scans auth files from that directory.
-- It also tries to import the current `~/.codex/auth.json` last.
+- It also tries to import the current `~/.gemini/auth.json` last.
 - It preserves stored `auto_switch` and `api` configuration.
 - It clears and rebuilds account records, stored usage, active-account activation time, and local rollout dedupe state.
 - It does not delete old snapshot files or backups.

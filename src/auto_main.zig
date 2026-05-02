@@ -2,7 +2,7 @@ const std = @import("std");
 const auto = @import("auto/root.zig");
 const registry = @import("registry/root.zig");
 
-fn resolveDaemonCodexHome(allocator: std.mem.Allocator, init: std.process.Init.Minimal) ![]u8 {
+fn resolveDaemonGeminiHome(allocator: std.mem.Allocator, init: std.process.Init.Minimal) ![]u8 {
     var arena_state = std.heap.ArenaAllocator.init(allocator);
     defer arena_state.deinit();
     const args = try init.args.toSlice(arena_state.allocator());
@@ -29,9 +29,9 @@ fn resolveDaemonCodexHome(allocator: std.mem.Allocator, init: std.process.Init.M
     }
 
     if (gemini_home_override) |path| {
-        return try registry.resolveCodexHomeFromEnv(allocator, path, null, null);
+        return try registry.resolveGeminiHomeFromEnv(allocator, path, null, null);
     }
-    return try registry.resolveCodexHome(allocator);
+    return try registry.resolveGeminiHome(allocator);
 }
 
 pub fn main(init: std.process.Init.Minimal) !void {
@@ -39,7 +39,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
-    const gemini_home = try resolveDaemonCodexHome(allocator, init);
+    const gemini_home = try resolveDaemonGeminiHome(allocator, init);
     defer allocator.free(gemini_home);
 
     try auto.runDaemon(allocator, gemini_home);

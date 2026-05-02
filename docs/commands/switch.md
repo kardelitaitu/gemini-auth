@@ -1,16 +1,16 @@
-# `codex-auth switch`
+# `gemini-auth switch`
 
 ## Usage
 
 ```shell
-codex-auth switch [--api|--skip-api]
-codex-auth switch --live [--api|--skip-api]
-codex-auth switch <query>
+gemini-auth switch [--api|--skip-api]
+gemini-auth switch --live [--api|--skip-api]
+gemini-auth switch <query>
 ```
 
 ## Interactive Switch
 
-`codex-auth switch` opens the account picker and exits after one successful switch.
+`gemini-auth switch` opens the account picker and exits after one successful switch.
 
 - The picker uses the same account ordering as `list`.
 - `q` quits without switching.
@@ -19,7 +19,7 @@ codex-auth switch <query>
 
 ## Live Switch
 
-`codex-auth switch --live` keeps the picker open after each successful switch.
+`gemini-auth switch --live` keeps the picker open after each successful switch.
 
 - The display refreshes on a timer.
 - A successful switch patches the current display immediately.
@@ -29,7 +29,7 @@ codex-auth switch <query>
 
 ## Foreground Auto Switch
 
-`codex-auth switch --live` includes an auto-switch loop in the live picker.
+`gemini-auth switch --live` includes an auto-switch loop in the live picker.
 The loop runs once on the initial live display and then runs again after later
 live refreshes.
 
@@ -43,7 +43,7 @@ Candidate rows follow the live picker rules. Rows that already show `0%` on 5h o
 
 ## Query Switch
 
-`codex-auth switch <query>` resolves the target from stored local data and does not run remote refresh.
+`gemini-auth switch <query>` resolves the target from stored local data and does not run remote refresh.
 
 Selectors can match:
 
@@ -59,5 +59,5 @@ If one account matches, it switches immediately. If multiple accounts match, the
 When switching succeeds:
 
 1. `auth.json` is backed up when its contents would change.
-2. The selected account snapshot is copied to `~/.codex/auth.json`.
+2. The selected account snapshot is copied to `~/.gemini/auth.json`.
 3. `active_account_key` is updated in `registry.json`.

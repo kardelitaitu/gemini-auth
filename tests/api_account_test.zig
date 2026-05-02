@@ -1,5 +1,5 @@
 const std = @import("std");
-const account_api = @import("codex_auth").api.account;
+const account_api = @import("gemini_auth").api.account;
 
 fn findEntryByAccountId(entries: []const account_api.AccountEntry, account_id: []const u8) ?*const account_api.AccountEntry {
     for (entries) |*entry| {

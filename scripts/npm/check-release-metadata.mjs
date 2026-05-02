@@ -70,13 +70,13 @@ function checkPackageMetadata() {
       fail(`${pkg.id}: archiveName ${pkg.archiveName} must end with ${expectedArchiveSuffix(pkg)}`);
     }
     if (pkg.os === "win32") {
-      requireEqual(`${pkg.id}.binaryName`, pkg.binaryName, "codex-auth.exe");
-      if (!pkg.binaryFiles.includes("codex-auth.exe") || !pkg.binaryFiles.includes("codex-auth-auto.exe")) {
-        fail(`${pkg.id}: Windows packages must include codex-auth.exe and codex-auth-auto.exe`);
+      requireEqual(`${pkg.id}.binaryName`, pkg.binaryName, "gemini-auth.exe");
+      if (!pkg.binaryFiles.includes("gemini-auth.exe") || !pkg.binaryFiles.includes("gemini-auth-auto.exe")) {
+        fail(`${pkg.id}: Windows packages must include gemini-auth.exe and gemini-auth-auto.exe`);
       }
     } else {
-      requireEqual(`${pkg.id}.binaryName`, pkg.binaryName, "codex-auth");
-      requireEqual(`${pkg.id}.binaryFiles`, pkg.binaryFiles.join(","), "codex-auth");
+      requireEqual(`${pkg.id}.binaryName`, pkg.binaryName, "gemini-auth");
+      requireEqual(`${pkg.id}.binaryFiles`, pkg.binaryFiles.join(","), "gemini-auth");
     }
   }
 }
@@ -99,11 +99,11 @@ function checkRootPackage() {
 }
 
 function checkCliWrapperMap() {
-  const wrapper = readText("bin/codex-auth.js");
+  const wrapper = readText("bin/gemini-auth.js");
   for (const pkg of platformPackages) {
     const expectedEntry = `"${pkg.os}:${pkg.cpu}": "${pkg.packageName}"`;
     if (!wrapper.includes(expectedEntry)) {
-      fail(`bin/codex-auth.js missing packageMap entry ${expectedEntry}`);
+      fail(`bin/gemini-auth.js missing packageMap entry ${expectedEntry}`);
     }
   }
 }

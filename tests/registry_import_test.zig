@@ -6,23 +6,23 @@ const fixtures = @import("support/fixtures.zig");
 const SyncBddContext = struct {
     allocator: std.mem.Allocator,
     tmp: std.testing.TmpDir,
-    codex_home: []u8,
+    gemini_home: []u8,
     reg: registry.Registry,
 
-    fn givenCleanCodexHome(allocator: std.mem.Allocator) !SyncBddContext {
+    fn givenCleanGeminiHome(allocator: std.mem.Allocator) !SyncBddContext {
         const tmp = std.testing.tmpDir(.{});
-        const codex_home = try app_runtime.realPathFileAlloc(allocator, tmp.dir, ".");
+        const gemini_home = try app_runtime.realPathFileAlloc(allocator, tmp.dir, ".");
         return SyncBddContext{
             .allocator = allocator,
             .tmp = tmp,
-            .codex_home = codex_home,
+            .gemini_home = gemini_home,
             .reg = fixtures.makeEmptyRegistry(),
         };
     }
 
     fn deinit(self: *SyncBddContext) void {
         self.reg.deinit(self.allocator);
-        self.allocator.free(self.codex_home);
+        self.allocator.free(self.gemini_home);
         self.tmp.cleanup();
     }
 
@@ -35,7 +35,7 @@ const SyncBddContext = struct {
     }
 
     fn whenSyncActiveAccountFromAuth(self: *SyncBddContext) !bool {
-        return try registry.syncActiveAccountFromAuth(self.allocator, self.codex_home, &self.reg);
+        return try registry.syncActiveAccountFromAuth(self.allocator, self.gemini_home, &self.reg);
     }
 
     fn thenAccountCountShouldBe(self: *SyncBddContext, expected: usize) !void {
@@ -55,11 +55,11 @@ const SyncBddContext = struct {
     }
 
     fn thenAccountAuthShouldMatchActive(self: *SyncBddContext, email: []const u8) !void {
-        const active_auth_path = try registry.activeAuthPath(self.allocator, self.codex_home);
+        const active_auth_path = try registry.activeAuthPath(self.allocator, self.gemini_home);
         defer self.allocator.free(active_auth_path);
         const account_id = try fixtures.accountKeyForEmailAlloc(self.allocator, email);
         defer self.allocator.free(account_id);
-        const account_auth_path = try registry.accountAuthPath(self.allocator, self.codex_home, account_id);
+        const account_auth_path = try registry.accountAuthPath(self.allocator, self.gemini_home, account_id);
         defer self.allocator.free(account_auth_path);
 
         const active_data = try fixtures.readFileAlloc(self.allocator, active_auth_path);
@@ -73,7 +73,7 @@ const SyncBddContext = struct {
 
 test "Scenario: Given empty registry when syncing auth then auto import and activate" {
     const gpa = std.testing.allocator;
-    var ctx = try SyncBddContext.givenCleanCodexHome(gpa);
+    var ctx = try SyncBddContext.givenCleanGeminiHome(gpa);
     defer ctx.deinit();
 
     const active_auth = try fixtures.authJsonWithEmailPlan(gpa, "auto@example.com", "plus");
@@ -90,7 +90,7 @@ test "Scenario: Given empty registry when syncing auth then auto import and acti
 
 test "Scenario: Given auth without email when syncing then sync is skipped" {
     const gpa = std.testing.allocator;
-    var ctx = try SyncBddContext.givenCleanCodexHome(gpa);
+    var ctx = try SyncBddContext.givenCleanGeminiHome(gpa);
     defer ctx.deinit();
 
     try ctx.givenRegisteredAccount("keep@example.com", "keep", .pro);
@@ -111,7 +111,7 @@ test "Scenario: Given auth without email when syncing then sync is skipped" {
 
 test "Scenario: Given auth without account id when syncing then sync is skipped" {
     const gpa = std.testing.allocator;
-    var ctx = try SyncBddContext.givenCleanCodexHome(gpa);
+    var ctx = try SyncBddContext.givenCleanGeminiHome(gpa);
     defer ctx.deinit();
 
     try ctx.givenRegisteredAccount("keep@example.com", "keep", .pro);
@@ -132,7 +132,7 @@ test "Scenario: Given auth without account id when syncing then sync is skipped"
 
 test "Scenario: Given malformed auth json when syncing then sync is skipped" {
     const gpa = std.testing.allocator;
-    var ctx = try SyncBddContext.givenCleanCodexHome(gpa);
+    var ctx = try SyncBddContext.givenCleanGeminiHome(gpa);
     defer ctx.deinit();
 
     try ctx.givenRegisteredAccount("keep@example.com", "keep", .pro);
@@ -151,7 +151,7 @@ test "Scenario: Given malformed auth json when syncing then sync is skipped" {
 
 test "Scenario: Given unmatched active auth email when syncing then append account and switch active" {
     const gpa = std.testing.allocator;
-    var ctx = try SyncBddContext.givenCleanCodexHome(gpa);
+    var ctx = try SyncBddContext.givenCleanGeminiHome(gpa);
     defer ctx.deinit();
 
     try ctx.givenRegisteredAccount("old@example.com", "old", .free);

@@ -1,6 +1,6 @@
 # Schema Migration
 
-This document defines how `codex-auth` versions the on-disk `~/.codex/accounts/registry.json` file.
+This document defines how `gemini-auth` versions the on-disk `~/.gemini/accounts/registry.json` file.
 
 ## Terms
 
@@ -10,7 +10,7 @@ This document defines how `codex-auth` versions the on-disk `~/.codex/accounts/r
 
 ## Current Policy
 
-- `codex-auth` keeps a single `registry.json`; feature state such as `auto_switch` and `api` stays in that file.
+- `gemini-auth` keeps a single `registry.json`; feature state such as `auto_switch` and `api` stays in that file.
 - The latest binary supports every released schema. Right now that means:
   - legacy `version = 2`
   - current `schema_version = 4`
@@ -22,7 +22,7 @@ This document defines how `codex-auth` versions the on-disk `~/.codex/accounts/r
 - User-visible behavior is always “upgrade directly to the latest supported schema”.
 - Internally, migrations are implemented as a chain of `Vn -> Vn+1` steps.
 - In the current code, supported automatic migration is `version = 2 -> schema_version = 4`; older current-layout schema `3` files are rewritten once as schema `4`.
-- Users are not expected to install intermediate `codex-auth` versions.
+- Users are not expected to install intermediate `gemini-auth` versions.
 
 ## Released Schemas
 

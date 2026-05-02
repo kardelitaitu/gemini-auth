@@ -27,7 +27,7 @@ Test files should be grouped by product area or workflow, not by implementation 
 
 ## Build Integration
 
-`build.zig` owns the test suite with an explicit `test_files` array. For each entry, it creates a separate `b.addTest` artifact and injects the `codex_auth` package import.
+`build.zig` owns the test suite with an explicit `test_files` array. For each entry, it creates a separate `b.addTest` artifact and injects the `gemini_auth` package import.
 
 This keeps failures localized to the test file that owns them and avoids a large aggregate `tests/root.zig` importing everything manually.
 
@@ -61,7 +61,7 @@ When refactoring, test descriptions must remain compatible with `main`. This is 
 
 ## Validation Checklist
 
-After changing `.zig` files, run these from an isolated `/tmp/<task-name>` directory with isolated `HOME` and `CODEX_HOME`:
+After changing `.zig` files, run these from an isolated `/tmp/<task-name>` directory with isolated `HOME` and `GEMINI_HOME`:
 
 ```sh
 zig fmt $(find /path/to/repo -name '*.zig' -type f | sort)

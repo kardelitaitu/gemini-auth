@@ -1,6 +1,6 @@
 const std = @import("std");
-const app_runtime = @import("codex_auth").core.runtime;
-const sessions = @import("codex_auth").session;
+const app_runtime = @import("gemini_auth").core.runtime;
+const sessions = @import("gemini_auth").session;
 
 const line = "{" ++
     "\"timestamp\":\"2025-01-01T00:00:00Z\"," ++
@@ -136,8 +136,8 @@ test "scan latest usage chooses newest valid event from the most recent rollout 
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.createDirPath(app_runtime.io(), "sessions/2025/01/01");
 
     const names = [_][]const u8{
@@ -157,7 +157,7 @@ test "scan latest usage chooses newest valid event from the most recent rollout 
     defer for (paths[0..initialized]) |path| gpa.free(path);
 
     for (names, 0..) |name, idx| {
-        paths[idx] = try std.fs.path.join(gpa, &[_][]const u8{ codex_home, "sessions", "2025", "01", "01", name });
+        paths[idx] = try std.fs.path.join(gpa, &[_][]const u8{ gemini_home, "sessions", "2025", "01", "01", name });
         initialized = idx + 1;
     }
 
@@ -183,7 +183,7 @@ test "scan latest usage chooses newest valid event from the most recent rollout 
         try updateFileTimes(path, ts, ts);
     }
 
-    var latest = (try sessions.scanLatestUsageWithSource(gpa, codex_home)) orelse return error.TestExpectedEqual;
+    var latest = (try sessions.scanLatestUsageWithSource(gpa, gemini_home)) orelse return error.TestExpectedEqual;
     defer latest.deinit(gpa);
 
     try std.testing.expectEqualStrings(paths[9], latest.path);
@@ -197,8 +197,8 @@ test "scan latest usage ignores rollout files beyond the most recent file" {
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.createDirPath(app_runtime.io(), "sessions/2025/01/01");
 
     const names = [_][]const u8{
@@ -219,7 +219,7 @@ test "scan latest usage ignores rollout files beyond the most recent file" {
     defer for (paths[0..initialized]) |path| gpa.free(path);
 
     for (names, 0..) |name, idx| {
-        paths[idx] = try std.fs.path.join(gpa, &[_][]const u8{ codex_home, "sessions", "2025", "01", "01", name });
+        paths[idx] = try std.fs.path.join(gpa, &[_][]const u8{ gemini_home, "sessions", "2025", "01", "01", name });
         initialized = idx + 1;
     }
 
@@ -237,7 +237,7 @@ test "scan latest usage ignores rollout files beyond the most recent file" {
         try updateFileTimes(path, ts, ts);
     }
 
-    const latest = try sessions.scanLatestUsageWithSource(gpa, codex_home);
+    const latest = try sessions.scanLatestUsageWithSource(gpa, gemini_home);
     try std.testing.expect(latest == null);
 }
 
@@ -246,15 +246,15 @@ test "scan latest rollout event keeps newest token_count event even when rate_li
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.createDirPath(app_runtime.io(), "sessions/2025/01/01");
     try tmp.dir.writeFile(app_runtime.io(), .{
         .sub_path = "sessions/2025/01/01/rollout-a.jsonl",
         .data = line ++ "\n" ++ null_rate_limits_line ++ "\n",
     });
 
-    var latest = (try sessions.scanLatestRolloutEventWithSource(gpa, codex_home)) orelse return error.TestExpectedEqual;
+    var latest = (try sessions.scanLatestRolloutEventWithSource(gpa, gemini_home)) orelse return error.TestExpectedEqual;
     defer latest.deinit(gpa);
 
     try std.testing.expectEqualStrings("rollout-a.jsonl", std.fs.path.basename(latest.path));
@@ -268,8 +268,8 @@ test "scan latest usage keeps the last usable snapshot when a later token_count 
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.createDirPath(app_runtime.io(), "sessions/2025/01/01");
 
     const valid_line = try usageLineAlloc(gpa, "2025-01-01T00:00:09.000Z", 90.0);
@@ -281,7 +281,7 @@ test "scan latest usage keeps the last usable snapshot when a later token_count 
         .data = file_contents,
     });
 
-    var latest = (try sessions.scanLatestUsageWithSource(gpa, codex_home)) orelse return error.TestExpectedEqual;
+    var latest = (try sessions.scanLatestUsageWithSource(gpa, gemini_home)) orelse return error.TestExpectedEqual;
     defer latest.deinit(gpa);
 
     try std.testing.expectEqualStrings("rollout-a.jsonl", std.fs.path.basename(latest.path));
@@ -295,15 +295,15 @@ test "scan latest usage streams rollout files larger than ten megabytes" {
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.createDirPath(app_runtime.io(), "sessions/2025/01/01");
 
     const large_line = try usageLineAlloc(gpa, "2025-01-01T00:00:11.000Z", 42.0);
     defer gpa.free(large_line);
     try writeLargeRolloutFile(gpa, tmp.dir, "sessions/2025/01/01/rollout-large.jsonl", 11 * 1024 * 1024, large_line);
 
-    var latest = (try sessions.scanLatestUsageWithSource(gpa, codex_home)) orelse return error.TestExpectedEqual;
+    var latest = (try sessions.scanLatestUsageWithSource(gpa, gemini_home)) orelse return error.TestExpectedEqual;
     defer latest.deinit(gpa);
 
     try std.testing.expectEqualStrings("rollout-large.jsonl", std.fs.path.basename(latest.path));
@@ -317,15 +317,15 @@ test "scan latest usage keeps final line without trailing newline" {
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.createDirPath(app_runtime.io(), "sessions/2025/01/01");
 
     const final_line = try usageLineAlloc(gpa, "2025-01-01T00:00:12.000Z", 33.0);
     defer gpa.free(final_line);
     try tmp.dir.writeFile(app_runtime.io(), .{ .sub_path = "sessions/2025/01/01/rollout-no-newline.jsonl", .data = final_line });
 
-    var latest = (try sessions.scanLatestUsageWithSource(gpa, codex_home)) orelse return error.TestExpectedEqual;
+    var latest = (try sessions.scanLatestUsageWithSource(gpa, gemini_home)) orelse return error.TestExpectedEqual;
     defer latest.deinit(gpa);
 
     try std.testing.expectEqualStrings("rollout-no-newline.jsonl", std.fs.path.basename(latest.path));
@@ -339,8 +339,8 @@ test "scan latest rollout event cache tracks changes to the current rollout file
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.createDirPath(app_runtime.io(), "sessions/2025/01/01");
 
     const first_line = try usageLineAlloc(gpa, "2025-01-01T00:00:12.000Z", 33.0);
@@ -348,7 +348,7 @@ test "scan latest rollout event cache tracks changes to the current rollout file
     const second_line = try usageLineAlloc(gpa, "2025-01-01T00:00:13.000Z", 44.0);
     defer gpa.free(second_line);
 
-    const rollout_path = try std.fs.path.join(gpa, &[_][]const u8{ codex_home, "sessions", "2025", "01", "01", "rollout-cache.jsonl" });
+    const rollout_path = try std.fs.path.join(gpa, &[_][]const u8{ gemini_home, "sessions", "2025", "01", "01", "rollout-cache.jsonl" });
     defer gpa.free(rollout_path);
 
     try std.Io.Dir.cwd().writeFile(app_runtime.io(), .{ .sub_path = rollout_path, .data = first_line });
@@ -356,7 +356,7 @@ test "scan latest rollout event cache tracks changes to the current rollout file
     var cache = sessions.RolloutScanCache{};
     defer cache.deinit(gpa);
 
-    var latest = (try sessions.scanLatestRolloutEventWithCache(gpa, codex_home, &cache)) orelse return error.TestExpectedEqual;
+    var latest = (try sessions.scanLatestRolloutEventWithCache(gpa, gemini_home, &cache)) orelse return error.TestExpectedEqual;
     defer latest.deinit(gpa);
     try std.testing.expectEqual(@as(i64, 1735689612000), latest.event_timestamp_ms);
 
@@ -366,7 +366,7 @@ test "scan latest rollout event cache tracks changes to the current rollout file
     try updateFileTimes(rollout_path, base_time + std.time.ns_per_s, base_time + std.time.ns_per_s);
 
     latest.deinit(gpa);
-    latest = (try sessions.scanLatestRolloutEventWithCache(gpa, codex_home, &cache)) orelse return error.TestExpectedEqual;
+    latest = (try sessions.scanLatestRolloutEventWithCache(gpa, gemini_home, &cache)) orelse return error.TestExpectedEqual;
     try std.testing.expectEqual(@as(i64, 1735689613000), latest.event_timestamp_ms);
     try std.testing.expect(latest.snapshot != null);
     try std.testing.expectEqual(@as(f64, 44.0), latest.snapshot.?.primary.?.used_percent);
@@ -377,12 +377,12 @@ test "scan latest rollout event cache rediscovers a newer rollout file on the ne
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.createDirPath(app_runtime.io(), "sessions/2025/01/01");
-    const first_path = try std.fs.path.join(gpa, &[_][]const u8{ codex_home, "sessions", "2025", "01", "01", "rollout-a.jsonl" });
+    const first_path = try std.fs.path.join(gpa, &[_][]const u8{ gemini_home, "sessions", "2025", "01", "01", "rollout-a.jsonl" });
     defer gpa.free(first_path);
-    const second_path = try std.fs.path.join(gpa, &[_][]const u8{ codex_home, "sessions", "2025", "01", "01", "rollout-b.jsonl" });
+    const second_path = try std.fs.path.join(gpa, &[_][]const u8{ gemini_home, "sessions", "2025", "01", "01", "rollout-b.jsonl" });
     defer gpa.free(second_path);
 
     const first_line = try usageLineAlloc(gpa, "2025-01-01T00:00:14.000Z", 20.0);
@@ -397,7 +397,7 @@ test "scan latest rollout event cache rediscovers a newer rollout file on the ne
     var cache = sessions.RolloutScanCache{};
     defer cache.deinit(gpa);
 
-    var latest = (try sessions.scanLatestRolloutEventWithCache(gpa, codex_home, &cache)) orelse return error.TestExpectedEqual;
+    var latest = (try sessions.scanLatestRolloutEventWithCache(gpa, gemini_home, &cache)) orelse return error.TestExpectedEqual;
     defer latest.deinit(gpa);
     try std.testing.expectEqualStrings("rollout-a.jsonl", std.fs.path.basename(latest.path));
 
@@ -405,12 +405,12 @@ test "scan latest rollout event cache rediscovers a newer rollout file on the ne
     try updateFileTimes(second_path, base_time + std.time.ns_per_s, base_time + std.time.ns_per_s);
 
     latest.deinit(gpa);
-    latest = (try sessions.scanLatestRolloutEventWithCache(gpa, codex_home, &cache)) orelse return error.TestExpectedEqual;
+    latest = (try sessions.scanLatestRolloutEventWithCache(gpa, gemini_home, &cache)) orelse return error.TestExpectedEqual;
     try std.testing.expectEqualStrings("rollout-a.jsonl", std.fs.path.basename(latest.path));
 
     cache.last_full_scan_at_ns = 0;
     latest.deinit(gpa);
-    latest = (try sessions.scanLatestRolloutEventWithCache(gpa, codex_home, &cache)) orelse return error.TestExpectedEqual;
+    latest = (try sessions.scanLatestRolloutEventWithCache(gpa, gemini_home, &cache)) orelse return error.TestExpectedEqual;
     try std.testing.expectEqualStrings("rollout-b.jsonl", std.fs.path.basename(latest.path));
     try std.testing.expectEqual(@as(i64, 1735689615000), latest.event_timestamp_ms);
 }
@@ -420,14 +420,14 @@ test "scan latest rollout event cache rescans immediately after an empty result"
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.createDirPath(app_runtime.io(), "sessions/2025/01/01");
 
     var cache = sessions.RolloutScanCache{};
     defer cache.deinit(gpa);
 
-    try std.testing.expect((try sessions.scanLatestRolloutEventWithCache(gpa, codex_home, &cache)) == null);
+    try std.testing.expect((try sessions.scanLatestRolloutEventWithCache(gpa, gemini_home, &cache)) == null);
     try std.testing.expect(cache.latest == null);
     try std.testing.expect(cache.last_full_scan_at_ns != 0);
 
@@ -435,7 +435,7 @@ test "scan latest rollout event cache rescans immediately after an empty result"
     defer gpa.free(first_line);
     try tmp.dir.writeFile(app_runtime.io(), .{ .sub_path = "sessions/2025/01/01/rollout-after-empty.jsonl", .data = first_line });
 
-    var latest = (try sessions.scanLatestRolloutEventWithCache(gpa, codex_home, &cache)) orelse return error.TestExpectedEqual;
+    var latest = (try sessions.scanLatestRolloutEventWithCache(gpa, gemini_home, &cache)) orelse return error.TestExpectedEqual;
     defer latest.deinit(gpa);
     try std.testing.expectEqualStrings("rollout-after-empty.jsonl", std.fs.path.basename(latest.path));
     try std.testing.expectEqual(@as(i64, 1735689616000), latest.event_timestamp_ms);
@@ -446,8 +446,8 @@ test "scan latest usage accepts valid token_count lines above one megabyte" {
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.createDirPath(app_runtime.io(), "sessions/2025/01/01");
 
     const large_line = try usageLineWithLargeBalanceAlloc(gpa, "2025-01-01T00:00:13.000Z", 27.0, 2 * 1024 * 1024);
@@ -456,7 +456,7 @@ test "scan latest usage accepts valid token_count lines above one megabyte" {
     defer gpa.free(file_contents);
     try tmp.dir.writeFile(app_runtime.io(), .{ .sub_path = "sessions/2025/01/01/rollout-large-line.jsonl", .data = file_contents });
 
-    var latest = (try sessions.scanLatestUsageWithSource(gpa, codex_home)) orelse return error.TestExpectedEqual;
+    var latest = (try sessions.scanLatestUsageWithSource(gpa, gemini_home)) orelse return error.TestExpectedEqual;
     defer latest.deinit(gpa);
 
     try std.testing.expectEqualStrings("rollout-large-line.jsonl", std.fs.path.basename(latest.path));
@@ -472,8 +472,8 @@ test "scan latest usage skips oversized malformed lines and keeps later valid ev
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    const codex_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
-    defer gpa.free(codex_home);
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
+    defer gpa.free(gemini_home);
     try tmp.dir.createDirPath(app_runtime.io(), "sessions/2025/01/01");
 
     const valid_line = try usageLineAlloc(gpa, "2025-01-01T00:00:14.000Z", 64.0);
@@ -486,7 +486,7 @@ test "scan latest usage skips oversized malformed lines and keeps later valid ev
         valid_line,
     );
 
-    var latest = (try sessions.scanLatestUsageWithSource(gpa, codex_home)) orelse return error.TestExpectedEqual;
+    var latest = (try sessions.scanLatestUsageWithSource(gpa, gemini_home)) orelse return error.TestExpectedEqual;
     defer latest.deinit(gpa);
 
     try std.testing.expectEqualStrings("rollout-oversized-line.jsonl", std.fs.path.basename(latest.path));

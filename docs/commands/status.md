@@ -1,9 +1,9 @@
-# `codex-auth status`
+# `gemini-auth status`
 
 ## Usage
 
 ```shell
-codex-auth status
+gemini-auth status
 ```
 
 ## Behavior

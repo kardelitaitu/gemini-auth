@@ -29,7 +29,7 @@ pub fn build(b: *std.Build) void {
         linkWindowsTaskSchedulerLibraries(main_module);
     }
     const exe = b.addExecutable(.{
-        .name = "codex-auth",
+        .name = "gemini-auth",
         .root_module = main_module,
     });
     b.installArtifact(exe);
@@ -43,7 +43,7 @@ pub fn build(b: *std.Build) void {
         });
         linkWindowsTaskSchedulerLibraries(auto_module);
         const auto_exe = b.addExecutable(.{
-            .name = "codex-auth-auto",
+            .name = "gemini-auth-auto",
             .root_module = auto_module,
         });
         auto_exe.subsystem = .Windows;
@@ -54,7 +54,7 @@ pub fn build(b: *std.Build) void {
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
-    const run_step = b.step("run", "Run codex-auth");
+    const run_step = b.step("run", "Run gemini-auth");
     run_step.dependOn(&run_cmd.step);
 
     const test_files = [_][]const u8{
@@ -92,7 +92,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .link_libc = true,
             .imports = &.{
-                .{ .name = "codex_auth", .module = package_module },
+                .{ .name = "gemini_auth", .module = package_module },
             },
         });
         if (is_windows) {

@@ -1,18 +1,18 @@
 # Auto-Switch Implementation
 
-This document is the single source of truth for `codex-auth` background auto-switch behavior.
+This document is the single source of truth for `gemini-auth` background auto-switch behavior.
 
-It does not describe the foreground `codex-auth switch --live` picker mode. That live picker mode has its own immediate display-driven switching implementation. It reads the same threshold config fields, but it does not share the background watcher candidate scoring or switching path.
+It does not describe the foreground `gemini-auth switch --live` picker mode. That live picker mode has its own immediate display-driven switching implementation. It reads the same threshold config fields, but it does not share the background watcher candidate scoring or switching path.
 
 ## Commands and Stored Config
 
 User-facing commands:
 
-- `codex-auth config auto enable`
-- `codex-auth config auto disable`
-- `codex-auth config auto [--5h <percent>] [--weekly <percent>]`
-- `codex-auth config api enable`
-- `codex-auth config api disable`
+- `gemini-auth config auto enable`
+- `gemini-auth config auto disable`
+- `gemini-auth config auto [--5h <percent>] [--weekly <percent>]`
+- `gemini-auth config api enable`
+- `gemini-auth config api disable`
 
 Stored registry fields:
 
@@ -27,7 +27,7 @@ The feature is off by default.
 
 When enabled, managed services run the long-lived watcher mode:
 
-- `codex-auth daemon --watch`
+- `gemini-auth daemon --watch`
 
 The watcher keeps a single process alive and runs roughly once per second.
 Each cycle:
@@ -62,7 +62,7 @@ The background watcher is intentionally not API-only, even when `api.usage = tru
 
 Local rollout attribution rules are unchanged:
 
-- only the newest `~/.codex/sessions/**/rollout-*.jsonl` file is considered
+- only the newest `~/.gemini/sessions/**/rollout-*.jsonl` file is considered
 - in watcher mode, the newest rollout file is cached in memory and rechecked cheaply between bounded full rescans, so large session trees are not fully walked every second
 - the last usable `token_count` event in that file is used
 - a newer `token_count` event with unusable `rate_limits` is still treated as a fresh signal for API fallback, but it does not overwrite the stored usage snapshot
@@ -101,12 +101,12 @@ Platform bootstrap:
 
 - Linux/WSL: `systemd --user` persistent service
 - macOS: `LaunchAgent` with `KeepAlive`
-- Windows: user scheduled task with an `ONLOGON` trigger, restart-on-failure settings, and an unlimited execution time for `codex-auth-auto.exe`, plus an immediate `schtasks /Run` during enablement
+- Windows: user scheduled task with an `ONLOGON` trigger, restart-on-failure settings, and an unlimited execution time for `gemini-auth-auto.exe`, plus an immediate `schtasks /Run` during enablement
 
-Service definition files stay in the platform-standard per-user locations. The managed watcher process uses the current `codex_home` root, so when `CODEX_HOME` is set during enablement the watcher keeps reading and writing that override after it starts in the background.
+Service definition files stay in the platform-standard per-user locations. The managed watcher process uses the current `gemini_home` root, so when `GEMINI_HOME` is set during enablement the watcher keeps reading and writing that override after it starts in the background.
 Foreground commands other than `help`, `version`, `status`, and `daemon` still reconcile the managed service definition after they complete.
 `config auto enable` also prints a short usage-mode note so the user can see whether switching is currently running with default API-backed usage data or local-only fallback semantics.
-When migrating from older Linux/WSL timer-based installs, enable/reconcile also removes the legacy `codex-auth-autoswitch.timer` unit file instead of leaving the old minute timer behind.
+When migrating from older Linux/WSL timer-based installs, enable/reconcile also removes the legacy `gemini-auth-autoswitch.timer` unit file instead of leaving the old minute timer behind.
 
 ## Limits
 

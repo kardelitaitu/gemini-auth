@@ -16,22 +16,22 @@ jobs:
         include:
           - id: linux-x64
             zig_target: x86_64-linux-gnu
-            binary_name: codex-auth
+            binary_name: gemini-auth
           - id: linux-arm64
             zig_target: aarch64-linux-gnu
-            binary_name: codex-auth
+            binary_name: gemini-auth
           - id: darwin-x64
             zig_target: x86_64-macos-none
-            binary_name: codex-auth
+            binary_name: gemini-auth
           - id: darwin-arm64
             zig_target: aarch64-macos-none
-            binary_name: codex-auth
+            binary_name: gemini-auth
           - id: win32-x64
             zig_target: x86_64-windows-gnu
-            binary_name: codex-auth.exe
+            binary_name: gemini-auth.exe
           - id: win32-arm64
             zig_target: aarch64-windows-gnu
-            binary_name: codex-auth.exe
+            binary_name: gemini-auth.exe
 
     steps:
       - name: Checkout
@@ -51,7 +51,7 @@ jobs:
           mkdir -p "artifacts/${{ matrix.id }}/binary"
           cp "zig-out/bin/${{ matrix.binary_name }}" "artifacts/${{ matrix.id }}/binary/${{ matrix.binary_name }}"
           if [[ "${{ matrix.id }}" == win32-* ]]; then
-            cp "zig-out/bin/codex-auth-auto.exe" "artifacts/${{ matrix.id }}/binary/codex-auth-auto.exe"
+            cp "zig-out/bin/gemini-auth-auto.exe" "artifacts/${{ matrix.id }}/binary/gemini-auth-auto.exe"
           fi
 
       - name: Upload artifact bundle
@@ -101,9 +101,9 @@ jobs:
         run: >
           npx pkg-pr-new publish --bin
           ./dist/npm/root
-          ./dist/npm/codex-auth-linux-x64
-          ./dist/npm/codex-auth-linux-arm64
-          ./dist/npm/codex-auth-darwin-x64
-          ./dist/npm/codex-auth-darwin-arm64
-          ./dist/npm/codex-auth-win32-x64
-          ./dist/npm/codex-auth-win32-arm64
+          ./dist/npm/gemini-auth-linux-x64
+          ./dist/npm/gemini-auth-linux-arm64
+          ./dist/npm/gemini-auth-darwin-x64
+          ./dist/npm/gemini-auth-darwin-arm64
+          ./dist/npm/gemini-auth-win32-x64
+          ./dist/npm/gemini-auth-win32-arm64

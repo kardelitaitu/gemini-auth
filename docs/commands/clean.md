@@ -1,14 +1,14 @@
-# `codex-auth clean`
+# `gemini-auth clean`
 
 ## Usage
 
 ```shell
-codex-auth clean
+gemini-auth clean
 ```
 
 ## Behavior
 
-- Cleans managed files under `~/.codex/accounts/`.
+- Cleans managed files under `~/.gemini/accounts/`.
 - Keeps live account snapshot files referenced by `registry.json`.
 - Deletes stale managed snapshot files that are no longer referenced.
 - Prunes managed backup files according to the backup retention rules.

@@ -310,7 +310,7 @@ pub fn hasMissingAccountNameForUser(reg: *const Registry, google_user_id: []cons
 pub fn shouldFetchTeamAccountNamesForUser(reg: *const Registry, google_user_id: []const u8) bool {
     _ = reg;
     _ = google_user_id;
-    return false; // Gemini doesn't have team accounts like Codex
+    return false; // Gemini doesn't have team accounts like Gemini
 }
 
 pub fn activeGoogleUserId(reg: *Registry) ?[]const u8 {

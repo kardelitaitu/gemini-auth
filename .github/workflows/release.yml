@@ -43,28 +43,28 @@ jobs:
         include:
           - id: linux-x64
             zig_target: x86_64-linux-gnu
-            binary_name: codex-auth
-            archive_name: codex-auth-Linux-X64.tar.gz
+            binary_name: gemini-auth
+            archive_name: gemini-auth-Linux-X64.tar.gz
           - id: linux-arm64
             zig_target: aarch64-linux-gnu
-            binary_name: codex-auth
-            archive_name: codex-auth-Linux-ARM64.tar.gz
+            binary_name: gemini-auth
+            archive_name: gemini-auth-Linux-ARM64.tar.gz
           - id: darwin-x64
             zig_target: x86_64-macos-none
-            binary_name: codex-auth
-            archive_name: codex-auth-macOS-X64.tar.gz
+            binary_name: gemini-auth
+            archive_name: gemini-auth-macOS-X64.tar.gz
           - id: darwin-arm64
             zig_target: aarch64-macos-none
-            binary_name: codex-auth
-            archive_name: codex-auth-macOS-ARM64.tar.gz
+            binary_name: gemini-auth
+            archive_name: gemini-auth-macOS-ARM64.tar.gz
           - id: win32-x64
             zig_target: x86_64-windows-gnu
-            binary_name: codex-auth.exe
-            archive_name: codex-auth-Windows-X64.zip
+            binary_name: gemini-auth.exe
+            archive_name: gemini-auth-Windows-X64.zip
           - id: win32-arm64
             zig_target: aarch64-windows-gnu
-            binary_name: codex-auth.exe
-            archive_name: codex-auth-Windows-ARM64.zip
+            binary_name: gemini-auth.exe
+            archive_name: gemini-auth-Windows-ARM64.zip
 
     steps:
       - name: Checkout
@@ -96,7 +96,7 @@ jobs:
           mkdir -p "artifacts/${{ matrix.id }}/binary"
           cp "zig-out/bin/${{ matrix.binary_name }}" "artifacts/${{ matrix.id }}/binary/${{ matrix.binary_name }}"
           if [[ "${{ matrix.id }}" == win32-* ]]; then
-            cp "zig-out/bin/codex-auth-auto.exe" "artifacts/${{ matrix.id }}/binary/codex-auth-auto.exe"
+            cp "zig-out/bin/gemini-auth-auto.exe" "artifacts/${{ matrix.id }}/binary/gemini-auth-auto.exe"
           fi
           if [[ "${{ matrix.archive_name }}" == *.zip ]]; then
             (
@@ -322,7 +322,7 @@ jobs:
         run: npm pack ./dist/npm/root --pack-destination ./dist/packed
 
       - name: Pack host platform package
-        run: npm pack ./dist/npm/codex-auth-linux-x64 --pack-destination ./dist/packed
+        run: npm pack ./dist/npm/gemini-auth-linux-x64 --pack-destination ./dist/packed
 
       - name: Smoke install packed tarballs
         shell: bash
@@ -330,8 +330,8 @@ jobs:
           mkdir -p smoke
           cd smoke
           npm init -y
-          npm install "../dist/packed/loongphy-codex-auth-linux-x64-${PACKAGE_VERSION}.tgz" "../dist/packed/loongphy-codex-auth-${PACKAGE_VERSION}.tgz"
-          ./node_modules/.bin/codex-auth --version
+          npm install "../dist/packed/loongphy-gemini-auth-linux-x64-${PACKAGE_VERSION}.tgz" "../dist/packed/loongphy-gemini-auth-${PACKAGE_VERSION}.tgz"
+          ./node_modules/.bin/gemini-auth --version
 
       - name: Set npm dist-tag
         shell: bash
@@ -346,12 +346,12 @@ jobs:
         shell: bash
         run: |
           for dir in \
-            codex-auth-linux-x64 \
-            codex-auth-linux-arm64 \
-            codex-auth-darwin-x64 \
-            codex-auth-darwin-arm64 \
-            codex-auth-win32-x64 \
-            codex-auth-win32-arm64
+            gemini-auth-linux-x64 \
+            gemini-auth-linux-arm64 \
+            gemini-auth-darwin-x64 \
+            gemini-auth-darwin-arm64 \
+            gemini-auth-win32-x64 \
+            gemini-auth-win32-arm64
           do
             npm publish "./dist/npm/${dir}" --access public --tag "${NPM_DIST_TAG}"
           done
