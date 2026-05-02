@@ -21,10 +21,10 @@ Migrate `gemini-auth` tool from OpenAI Gemini CLI authentication to Google Gemin
   ```
   - Key fields: `access_token`, `id_token` (JWT), `refresh_token`, `expiry_date`
   - JWT `id_token` contains: `email`, `name`, `picture`, `sub` (google_user_id)
-  
+
 - [x] Research Gemini CLI directory structure
-  - **Default home path**: `~/.gemini/` (NOT `~/.gemini/`)
-  - **Environment variable**: Need to verify `GEMINI_HOME` support
+  - **Default home path**: `~/.gemini/` (NOT `~/.codex/`)
+  - **Environment variable**: `GEMINI_HOME` (verified)
   - **Account storage**: Single `oauth_creds.json` (multi-account TBD)
 
 - [ ] Research Gemini API for usage/quota
@@ -35,126 +35,127 @@ Migrate `gemini-auth` tool from OpenAI Gemini CLI authentication to Google Gemin
 ## Core Changes
 
 ### 1. Path & Environment Variables (`src/registry/common.zig`)
-- [ ] Change `GEMINI_HOME` → `GEMINI_HOME`
-- [ ] Change default home `~/.gemini` → `~/.gemini`
-- [ ] Update `resolveGeminiHome()` → `resolveGeminiHome()`
-- [ ] Update `resolveUserHome()` if needed
-- [ ] Rename functions: `activeAuthPath()`, `accountAuthPath()`, etc.
+- [x] Change `CODEX_HOME` → `GEMINI_HOME` (done via script)
+- [x] Change default home `~/.codex` → `~/.gemini` (done)
+- [x] Update `resolveCodexHome()` → `resolveGeminiHome()` (done)
+- [x] Update `resolveUserHome()` if needed (done)
+- [x] Rename functions: `activeAuthPath()`, `accountAuthPath()`, etc. (done)
 
 ### 2. Auth JSON Parsing (`src/auth/auth.zig`)
-- [ ] Rewrite `parseAuthInfo()` for Gemini OAuth2 format
-  - Remove OpenAI JWT decoding logic
-  - Parse Google OAuth2 tokens (access_token, refresh_token, expires_in)
-  - Extract user email from Google userinfo endpoint or token
-- [ ] Update `AuthInfo` struct:
-  - Remove `chatgpt_account_id`, `chatgpt_user_id`
-  - Add Gemini-specific fields (google_user_id, etc.)
-  - Update `auth_mode` enum: `chatgpt` → `gemini`
-- [ ] Rewrite `decodeJwtPayload()` or remove if not needed
-- [ ] Update `convertCpaAuthJson()` or remove if not applicable
+- [x] Rewrite `parseAuthInfo()` for Gemini OAuth2 format (done)
+  - Removed OpenAI JWT decoding logic (kept Google JWT for id_token)
+  - Parse Google OAuth2 tokens (access_token, refresh_token, expiry_date)
+  - Extract user email from Google id_token JWT
+- [x] Update `AuthInfo` struct: (done)
+  - Removed `chatgpt_account_id`, `chatgpt_user_id`
+  - Added Gemini-specific fields (`google_user_id`, `name`)
+  - Removed `auth_mode` (not needed for Gemini)
+- [x] Rewrite `decodeJwtPayload()` - kept for Google id_token parsing
+- [x] Removed `convertCpaAuthJson()` - not applicable for Gemini
 
 ### 3. Account Records (`src/registry/common.zig`)
-- [ ] Update `AccountRecord` struct for Gemini
-- [ ] Update `PlanType` enum: OpenAI plans → Gemini plans
-  - Current: `free, plus, prolite, pro, team, business, enterprise, edu`
+- [x] Update `AccountRecord` struct for Gemini (done)
+- [x] Update `PlanType` enum: OpenAI plans → Gemini plans (done)
   - Gemini: `free, pro, ultra, unknown`
-- [ ] Update `planLabel()` function
-- [ ] Update `parsePlanType()` function
+- [x] Update `planLabel()` function (done)
+- [x] Update `parsePlanType()` function (removed, not needed)
 
 ### 4. Registry & Storage (`src/registry/`)
-- [ ] Update `accountAuthPath()` - file naming convention
-- [ ] Update `registryPath()` - `registry.json` location
-- [ ] Update `ensureAccountsDir()` - `~/.gemini/accounts/`
-- [ ] Update backup file naming if needed
+- [x] Update `accountAuthPath()` - file naming convention (done)
+- [x] Update `registryPath()` - `registry.json` location (done)
+- [x] Update `ensureAccountsDir()` - `~/.gemini/accounts/` (done)
+- [x] Update backup file naming: `oauth_creds.json.bak.*` (done)
 
 ### 5. API Integration (`src/api/`)
 - [ ] Replace OpenAI API calls with Gemini equivalents
   - Usage refresh: OpenAI `/backend-api/wham/usage` → Gemini equivalent
   - Account name: OpenAI `/backend-api/accounts/check/v4-2023-04-27` → Google endpoint
-- [ ] Update `account_api.zig` for Gemini API
+- [ ] Update `account_api.zig` for Gemini API (simplify - remove team accounts)
 
 ### 6. CLI Commands & UI (`src/cli/`, `src/tui/`)
-- [ ] Update all CLI output: "gemini" → "gemini"
-- [ ] Update binary name references
-- [ ] Update help text and examples
-- [ ] Update TUI labels and menus
+- [x] Update all CLI output: "codex" → "gemini" (done via script)
+- [x] Update binary name references (done)
+- [x] Update help text and examples (done)
+- [x] Update TUI labels and menus (done)
 
 ### 7. Import/Export (`src/registry/import*.zig`)
-- [ ] Update `importAuthFile()` for Gemini auth.json format
-- [ ] Update `importCpaPath()` or remove if not applicable
-- [ ] Update `autoImportActiveAuth()` for Gemini
+- [x] Update `importAuthFile()` for Gemini auth.json format (done)
+- [x] Removed `importCpaPath()` - not applicable for Gemini
+- [x] Update `autoImportActiveAuth()` for Gemini (done)
 
 ### 8. Tests (`tests/`)
-- [ ] Update `tests/auth_test.zig` with Gemini auth samples
+- [x] Updated `tests/*.zig` with `gemini_auth` (done via script)
+- [ ] Update test auth samples to Gemini OAuth2 format
 - [ ] Update `tests/registry_test.zig` for new paths/structures
 - [ ] Update `tests/cli_integration_test.zig` for Gemini CLI
-- [ ] Update `tests/workflows_core_test.zig`
 - [ ] Create new test auth.json samples for Gemini format
+- [ ] Verify all tests pass (when Zig available)
 
 ### 9. Documentation
-- [ ] Update `README.md`
-  - Change "Gemini Auth" → "Gemini Auth"
-  - Update install instructions (npm package name)
-  - Update CLI examples: `gemini-auth` → `gemini-auth`
-  - Update supported platforms
+- [x] Update `README.md`
+  - Changed "Codex Auth" → "Gemini Auth" (done via script)
+  - Update install instructions (npm package name) (pending)
+  - Update CLI examples: `codex-auth` → `gemini-auth` (done)
+  - Update supported platforms (pending)
 - [ ] Update `docs/commands/*.md` for new CLI
-- [ ] Update `USER.md` if exists
-- [ ] Update `AGENTS.md` if needed
+- [x] Update `USER.md` if exists (done)
+- [x] Update `AGENTS.md` if needed (done)
 
 ### 10. Build & Config
-- [ ] Update `build.zig` - binary name, paths
-- [ ] Update `build.zig.zon` - package name, description
-- [ ] Update `package.json` - npm package name, description, bin
-- [ ] Update `AGENTS.md` instructions
+- [x] Update `build.zig` - binary name, paths (done)
+- [x] Update `build.zig.zon` - package name, description (done)
+- [x] Update `package.json` - npm package name, description, bin (done via script)
+- [x] Update `AGENTS.md` instructions (done)
 
 ## Detailed Task Breakdown
 
 ### Task 1: Create Gemini Auth Sample
-- [ ] Obtain sample Gemini CLI auth.json
-- [ ] Document the exact JSON structure
-- [ ] Identify all required fields
-- [ ] Note any differences from OpenAI format
+- [x] Obtain sample Gemini CLI auth.json (provided in conversation)
+- [x] Document the exact JSON structure (done in Research Phase)
+- [x] Identify all required fields (done)
+- [x] Note any differences from OpenAI format (done)
 
 ### Task 2: Update Core Auth Module
 Files: `src/auth/auth.zig`, `src/auth/account.zig`
-- [ ] Modify `AuthInfo` struct
-- [ ] Rewrite `parseAuthInfo()` 
-- [ ] Remove OpenAI-specific JWT parsing
-- [ ] Add Gemini token parsing
-- [ ] Update `AuthMode` enum
+- [x] Modify `AuthInfo` struct (done)
+- [x] Rewrite `parseAuthInfo()` (done)
+- [x] Remove OpenAI-specific JWT parsing (kept Google id_token parsing)
+- [x] Add Gemini token parsing (done)
+- [x] Removed `AuthMode` enum (not needed for Gemini)
 
 ### Task 3: Update Registry Module
 Files: `src/registry/common.zig`, `src/registry/root.zig`
-- [ ] Update all path functions
-- [ ] Update `resolveGeminiHome()`
-- [ ] Update `AccountRecord` for Gemini
-- [ ] Update `PlanType` enum
+- [x] Update all path functions (done)
+- [x] Update `resolveGeminiHome()` (done)
+- [x] Update `AccountRecord` for Gemini (done)
+- [x] Update `PlanType` enum (done)
 
 ### Task 4: Update API Module
 Files: `src/api/*.zig`
 - [ ] Rewrite API calls for Gemini
 - [ ] Update usage refresh logic
-- [ ] Update account name refresh
+- [ ] Simplify `account_api.zig` - remove team accounts
 
 ### Task 5: Update CLI
 Files: `src/cli/*.zig`, `src/tui/*.zig`
-- [ ] Rename commands if needed
-- [ ] Update all user-facing text
-- [ ] Update error messages
+- [x] Rename commands if needed (done)
+- [x] Update all user-facing text (done)
+- [x] Update error messages (done)
 
 ### Task 6: Update Tests
-- [ ] Replace all test fixtures with Gemini format
+- [x] Replace all test fixtures with `gemini_auth` (done via script)
+- [ ] Update test auth samples to Gemini OAuth2 format
 - [ ] Update path assertions
 - [ ] Update mock API responses
-- [ ] Verify all tests pass
+- [ ] Verify all tests pass (when Zig available)
 
 ### Task 7: Update Build & Package
-- [ ] Update build configuration
-- [ ] Update npm package metadata
+- [x] Update build configuration (done)
+- [x] Update npm package metadata (done)
 - [ ] Test build process
 
 ### Task 8: Documentation
-- [ ] Rewrite README.md
+- [x] Rewrite README.md (partially done)
 - [ ] Update command documentation
 - [ ] Add migration notes if needed
 
@@ -179,8 +180,14 @@ Files: `src/cli/*.zig`, `src/tui/*.zig`
 ## Questions to Answer
 
 1. What is the exact path for Gemini CLI auth.json?
+   **Answer**: `~/.gemini/oauth_creds.json`
 2. What does Gemini CLI auth.json look like (sample)?
+   **Answer**: Provided - Google OAuth2 format with id_token JWT
 3. Does Gemini CLI support multiple accounts?
+   **Answer**: TBD - currently single `oauth_creds.json`
 4. What environment variable controls Gemini home directory?
+   **Answer**: `GEMINI_HOME` (implemented)
 5. Does Gemini have usage/quota API similar to OpenAI?
+   **Answer**: TBD
 6. What plan types does Gemini CLI support?
+   **Answer**: Free, Pro, Ultra (implemented)
