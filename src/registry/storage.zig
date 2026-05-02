@@ -11,7 +11,6 @@ const storage_parse = @import("storage_parse.zig");
 const storage_write = @import("storage_write.zig");
 
 const PlanType = common.PlanType;
-const AuthMode = common.AuthMode;
 const RateLimitSnapshot = common.RateLimitSnapshot;
 const RolloutSignature = common.RolloutSignature;
 const AutoSwitchConfig = common.AutoSwitchConfig;
@@ -38,8 +37,6 @@ const copyManagedFile = common.copyManagedFile;
 const copyFile = common.copyFile;
 const hardenSensitiveFile = common.hardenSensitiveFile;
 const normalizeEmailAlloc = common.normalizeEmailAlloc;
-const parsePlanType = parse.parsePlanType;
-const parseAuthMode = parse.parseAuthMode;
 const parseUsage = parse.parseUsage;
 const parseAutoSwitch = parse.parseAutoSwitch;
 const parseApiConfig = parse.parseApiConfig;
@@ -65,7 +62,6 @@ const LegacyAccountRecord = struct {
     email: []u8,
     alias: []u8,
     plan: ?PlanType,
-    auth_mode: ?AuthMode,
     created_at: i64,
     last_used_at: ?i64,
     last_usage: ?RateLimitSnapshot,
@@ -105,7 +101,6 @@ fn parseLegacyAccountRecord(allocator: std.mem.Allocator, obj: std.json.ObjectMa
         .email = try normalizeEmailAlloc(allocator, email),
         .alias = try allocator.dupe(u8, alias),
         .plan = null,
-        .auth_mode = null,
         .created_at = readInt(obj.get("created_at")) orelse std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds(),
         .last_used_at = readInt(obj.get("last_used_at")),
         .last_usage = null,
@@ -116,12 +111,6 @@ fn parseLegacyAccountRecord(allocator: std.mem.Allocator, obj: std.json.ObjectMa
     if (obj.get("plan")) |p| {
         switch (p) {
             .string => |s| rec.plan = parsePlanType(s),
-            else => {},
-        }
-    }
-    if (obj.get("auth_mode")) |m| {
-        switch (m) {
-            .string => |s| rec.auth_mode = parseAuthMode(s),
             else => {},
         }
     }
@@ -204,18 +193,16 @@ fn migrateLegacyRecord(
     const info = try auth.parseAuthInfo(allocator, legacy_path);
     defer info.deinit(allocator);
     const email = info.email orelse return error.MissingEmail;
-    const chatgpt_account_id = info.chatgpt_account_id orelse return error.MissingAccountId;
+    const google_user_id = info.google_user_id orelse return error.MissingGoogleUserId;
     if (!std.mem.eql(u8, email, legacy.email)) return error.EmailMismatch;
 
     var rec = AccountRecord{
-        .account_key = try allocator.dupe(u8, info.record_key orelse return error.MissingChatgptUserId),
-        .chatgpt_account_id = try allocator.dupe(u8, chatgpt_account_id),
-        .chatgpt_user_id = try allocator.dupe(u8, info.chatgpt_user_id orelse return error.MissingChatgptUserId),
+        .account_key = try allocator.dupe(u8, google_user_id),
+        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, legacy.email),
         .alias = try allocator.dupe(u8, legacy.alias),
-        .account_name = null,
+        .name = null,
         .plan = info.plan orelse legacy.plan,
-        .auth_mode = info.auth_mode,
         .created_at = legacy.created_at,
         .last_used_at = legacy.last_used_at,
         .last_usage = legacy.last_usage,

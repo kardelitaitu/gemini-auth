@@ -31,16 +31,16 @@ pub const BackgroundRefreshLock = struct {
 };
 
 pub const Candidate = struct {
-    chatgpt_user_id: []u8,
+    google_user_id: []u8,
 
     pub fn deinit(self: *const Candidate, allocator: std.mem.Allocator) void {
-        allocator.free(self.chatgpt_user_id);
+        allocator.free(self.google_user_id);
     }
 };
 
-fn hasCandidate(candidates: []const Candidate, chatgpt_user_id: []const u8) bool {
+fn hasCandidate(candidates: []const Candidate, google_user_id: []const u8) bool {
     for (candidates) |candidate| {
-        if (std.mem.eql(u8, candidate.chatgpt_user_id, chatgpt_user_id)) return true;
+        if (std.mem.eql(u8, candidate.google_user_id, google_user_id)) return true;
     }
     return false;
 }
@@ -55,36 +55,6 @@ fn tryExclusiveLock(file: std.Io.File) !bool {
     return try file.tryLock(app_runtime.io(), .exclusive);
 }
 
-fn storedAuthInfoSupportsAccountNameRefresh(info: *const auth.AuthInfo) bool {
-    return info.access_token != null and info.chatgpt_account_id != null;
-}
-
-pub fn considerStoredAuthInfoForRefresh(
-    allocator: std.mem.Allocator,
-    best_info: *?auth.AuthInfo,
-    info: auth.AuthInfo,
-) void {
-    if (!storedAuthInfoSupportsAccountNameRefresh(&info)) {
-        var skipped = info;
-        skipped.deinit(allocator);
-        return;
-    }
-
-    if (best_info.* == null) {
-        best_info.* = info;
-        return;
-    }
-
-    if (candidateIsNewer(&info, &best_info.*.?)) {
-        var previous = best_info.*.?;
-        previous.deinit(allocator);
-        best_info.* = info;
-    } else {
-        var rejected = info;
-        rejected.deinit(allocator);
-    }
-}
-
 pub fn collectCandidates(
     allocator: std.mem.Allocator,
     reg: *registry.Registry,
@@ -95,20 +65,8 @@ pub fn collectCandidates(
         candidates.deinit(allocator);
     }
 
-    if (!reg.api.account) return candidates;
-
-    for (reg.accounts.items) |rec| {
-        if (rec.auth_mode != null and rec.auth_mode.? != .chatgpt) continue;
-        if (hasCandidate(candidates.items, rec.chatgpt_user_id)) continue;
-        if (!registry.shouldFetchTeamAccountNamesForUser(reg, rec.chatgpt_user_id)) continue;
-
-        const duped_id = try allocator.dupe(u8, rec.chatgpt_user_id);
-        errdefer allocator.free(duped_id);
-        try candidates.append(allocator, .{
-            .chatgpt_user_id = duped_id,
-        });
-    }
-
+    // Gemini doesn't have team accounts like OpenAI
+    // Return empty list for now
     return candidates;
 }
 
@@ -116,14 +74,13 @@ pub fn loadStoredAuthInfoForUser(
     allocator: std.mem.Allocator,
     gemini_home: []const u8,
     reg: *registry.Registry,
-    chatgpt_user_id: []const u8,
+    google_user_id: []const u8,
 ) !?auth.AuthInfo {
     var best_info: ?auth.AuthInfo = null;
     errdefer if (best_info) |*info| info.deinit(allocator);
 
     for (reg.accounts.items) |rec| {
-        if (!std.mem.eql(u8, rec.chatgpt_user_id, chatgpt_user_id)) continue;
-        if (rec.auth_mode != null and rec.auth_mode.? != .chatgpt) continue;
+        if (!std.mem.eql(u8, rec.google_user_id, google_user_id)) continue;
 
         const auth_path = try registry.accountAuthPath(allocator, gemini_home, rec.account_key);
         defer allocator.free(auth_path);

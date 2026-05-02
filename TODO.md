@@ -67,10 +67,12 @@ Migrate `gemini-auth` tool from OpenAI Gemini CLI authentication to Google Gemin
 - [x] Update backup file naming: `oauth_creds.json.bak.*` (done)
 
 ### 5. API Integration (`src/api/`)
-- [ ] Replace OpenAI API calls with Gemini equivalents
-  - Usage refresh: OpenAI `/backend-api/wham/usage` → Gemini equivalent
-  - Account name: OpenAI `/backend-api/accounts/check/v4-2023-04-27` → Google endpoint
-- [ ] Update `account_api.zig` for Gemini API (simplify - remove team accounts)
+- [x] Replace OpenAI API calls with Gemini equivalents (simplified)
+  - Removed OpenAI-specific API endpoints
+  - Simplified `account_api.zig` - removed team account functions
+  - Simplified `usage.zig` - removed OpenAI usage refresh logic
+- [x] Update `account_api.zig` for Gemini API (simplified)
+- [ ] Add TBD Gemini API endpoints when available
 
 ### 6. CLI Commands & UI (`src/cli/`, `src/tui/`)
 - [x] Update all CLI output: "codex" → "gemini" (done via script)
@@ -109,32 +111,12 @@ Migrate `gemini-auth` tool from OpenAI Gemini CLI authentication to Google Gemin
 
 ## Detailed Task Breakdown
 
-### Task 1: Create Gemini Auth Sample
-- [x] Obtain sample Gemini CLI auth.json (provided in conversation)
-- [x] Document the exact JSON structure (done in Research Phase)
-- [x] Identify all required fields (done)
-- [x] Note any differences from OpenAI format (done)
-
-### Task 2: Update Core Auth Module
-Files: `src/auth/auth.zig`, `src/auth/account.zig`
-- [x] Modify `AuthInfo` struct (done)
-- [x] Rewrite `parseAuthInfo()` (done)
-- [x] Remove OpenAI-specific JWT parsing (kept Google id_token parsing)
-- [x] Add Gemini token parsing (done)
-- [x] Removed `AuthMode` enum (not needed for Gemini)
-
-### Task 3: Update Registry Module
-Files: `src/registry/common.zig`, `src/registry/root.zig`
-- [x] Update all path functions (done)
-- [x] Update `resolveGeminiHome()` (done)
-- [x] Update `AccountRecord` for Gemini (done)
-- [x] Update `PlanType` enum (done)
-
 ### Task 4: Update API Module
 Files: `src/api/*.zig`
-- [ ] Rewrite API calls for Gemini
-- [ ] Update usage refresh logic
-- [ ] Simplify `account_api.zig` - remove team accounts
+- [x] Rewrite API calls for Gemini (simplified)
+- [x] Update usage refresh logic (simplified)
+- [x] Simplify `account_api.zig` - remove team accounts
+- [ ] Add Gemini API endpoints when available
 
 ### Task 5: Update CLI
 Files: `src/cli/*.zig`, `src/tui/*.zig`

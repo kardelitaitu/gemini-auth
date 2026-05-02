@@ -178,10 +178,8 @@ pub fn takeOwnedSwitchSelectionDisplay(
 pub fn cloneAccountRecord(allocator: std.mem.Allocator, rec: *const registry.AccountRecord) !registry.AccountRecord {
     const account_key = try allocator.dupe(u8, rec.account_key);
     errdefer allocator.free(account_key);
-    const chatgpt_account_id = try allocator.dupe(u8, rec.chatgpt_account_id);
-    errdefer allocator.free(chatgpt_account_id);
-    const chatgpt_user_id = try allocator.dupe(u8, rec.chatgpt_user_id);
-    errdefer allocator.free(chatgpt_user_id);
+    const google_user_id = try allocator.dupe(u8, rec.google_user_id orelse rec.account_key);
+    errdefer allocator.free(google_user_id);
     const email = try allocator.dupe(u8, rec.email);
     errdefer allocator.free(email);
     const alias = try allocator.dupe(u8, rec.alias);
@@ -190,27 +188,33 @@ pub fn cloneAccountRecord(allocator: std.mem.Allocator, rec: *const registry.Acc
         try allocator.dupe(u8, value)
     else
         null;
-    errdefer if (account_name) |value| allocator.free(value);
+    errdeferin if (account_name) |value| allocator.free(value);
+    const name = if (rec.name) |value|
+        try allocator.dupe(u8, value)
+    else
+        null;
+    errdefer if (name) |value| allocator.free(value);
+
     const last_usage = if (rec.last_usage) |snapshot|
         try registry.cloneRateLimitSnapshot(allocator, snapshot)
     else
         null;
-    errdefer if (last_usage) |*snapshot| registry.freeRateLimitSnapshot(allocator, snapshot);
+    errdeferin if (last_usage) |*snapshot| registry.freeRateLimitSnapshot(allocator, snapshot);
+
     const last_local_rollout = if (rec.last_local_rollout) |signature|
         try registry.cloneRolloutSignature(allocator, signature)
     else
         null;
-    errdefer if (last_local_rollout) |*signature| registry.freeRolloutSignature(allocator, signature);
+    errdeferin if (last_local_rollout) |*signature| registry.freeRolloutSignature(allocator, signature);
 
     return .{
         .account_key = account_key,
-        .chatgpt_account_id = chatgpt_account_id,
-        .chatgpt_user_id = chatgpt_user_id,
+        .google_user_id = google_user_id,
         .email = email,
         .alias = alias,
         .account_name = account_name,
+        .name = name,
         .plan = rec.plan,
-        .auth_mode = rec.auth_mode,
         .created_at = rec.created_at,
         .last_used_at = rec.last_used_at,
         .last_usage = last_usage,
@@ -221,11 +225,11 @@ pub fn cloneAccountRecord(allocator: std.mem.Allocator, rec: *const registry.Acc
 
 pub fn freeOwnedAccountRecord(allocator: std.mem.Allocator, rec: *const registry.AccountRecord) void {
     allocator.free(rec.account_key);
-    allocator.free(rec.chatgpt_account_id);
-    allocator.free(rec.chatgpt_user_id);
+    allocator.free(rec.google_user_id);
     allocator.free(rec.email);
     allocator.free(rec.alias);
     if (rec.account_name) |value| allocator.free(value);
+    if (rec.name) |value| allocator.free(value);
     if (rec.last_usage) |*snapshot| registry.freeRateLimitSnapshot(allocator, snapshot);
     if (rec.last_local_rollout) |*signature| registry.freeRolloutSignature(allocator, signature);
 }

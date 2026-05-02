@@ -3,7 +3,6 @@ const app_runtime = @import("../core/runtime.zig");
 const account_api = @import("../api/account.zig");
 const account_name_refresh = @import("../auth/account.zig");
 const cli = @import("../cli/root.zig");
-const chatgpt_http = @import("../api/http.zig");
 const display_rows = @import("../tui/display.zig");
 const registry = @import("../registry/root.zig");
 const auth = @import("../auth/auth.zig");

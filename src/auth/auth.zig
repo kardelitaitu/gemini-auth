@@ -16,10 +16,10 @@ pub const AuthInfo = struct {
         if (self.email) |e| allocator.free(e);
         if (self.google_user_id) |id| allocator.free(id);
         if (self.name) |n| allocator.free(n);
-        if (self.access_token) |token| allocator.free(token);
-        if (self.refresh_token) |token| allocator.free(token);
-        if (self.id_token) |token| allocator.free(token);
-        if (self.last_refresh) |value| allocator.free(value);
+        if (self.access_token) |t| allocator.free(t);
+        if (self.refresh_token) |t| allocator.free(t);
+        if (self.id_token) |t| allocator.free(t);
+        if (self.last_refresh) |v| allocator.free(v);
     }
 };
 
@@ -75,18 +75,7 @@ pub fn parseAuthInfoData(allocator: std.mem.Allocator, data: []const u8) !AuthIn
                 };
                 defer allocator.free(payload);
 
-                var payload_json = std.json.parseFromSlice(std.json.Value, allocator, payload, .{}) catch |err| {
-                    return AuthInfo{
-                        .email = null,
-                        .google_user_id = null,
-                        .name = null,
-                        .access_token = if (access_token) |t| allocator.dupe(u8, t) catch null else null,
-                        .refresh_token = if (refresh_token) |t| allocator.dupe(u8, t) catch null else null,
-                        .id_token = if (id_token) |t| allocator.dupe(u8, t) catch null else null,
-                        .expiry_date = expiry_date,
-                        .last_refresh = null,
-                    };
-                };
+                var payload_json = try std.json.parseFromSlice(std.json.Value, allocator, payload, .{});
                 defer payload_json.deinit();
 
                 const claims = payload_json.value;
@@ -153,36 +142,6 @@ pub fn parseAuthInfoData(allocator: std.mem.Allocator, data: []const u8) !AuthIn
     };
 }
 
-pub fn convertCpaAuthJson(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
-    var parsed = try std.json.parseFromSlice(std.json.Value, allocator, data, .{});
-    defer parsed.deinit();
-
-    const obj = switch (parsed.value) {
-        .object => |obj| obj,
-        else => return error.InvalidCpaFormat,
-    };
-
-    const refresh_token = jsonStringField(obj, "refresh_token") orelse return error.MissingRefreshToken;
-    if (refresh_token.len == 0) return error.MissingRefreshToken;
-
-    var out: std.Io.Writer.Allocating = .init(allocator);
-    errdefer out.deinit();
-
-    try std.json.Stringify.value(StandardAuthJson{
-        .auth_mode = "chatgpt",
-        .OPENAI_API_KEY = null,
-        .tokens = .{
-            .id_token = jsonStringFieldOrDefault(obj, "id_token"),
-            .access_token = jsonStringFieldOrDefault(obj, "access_token"),
-            .refresh_token = refresh_token,
-            .account_id = jsonStringFieldOrDefault(obj, "account_id"),
-        },
-        .last_refresh = jsonStringFieldOrDefault(obj, "last_refresh"),
-    }, .{ .whitespace = .indent_2 }, &out.writer);
-    try out.writer.writeAll("\n");
-    return try out.toOwnedSlice();
-}
-
 pub fn decodeJwtPayload(allocator: std.mem.Allocator, jwt: []const u8) ![]u8 {
     var it = std.mem.splitScalar(u8, jwt, '.');
     _ = it.next();
@@ -216,8 +175,4 @@ fn jsonStringField(obj: std.json.ObjectMap, key: []const u8) ?[]const u8 {
         .string => |s| s,
         else => null,
     };
-}
-
-fn jsonStringFieldOrDefault(obj: std.json.ObjectMap, key: []const u8) []const u8 {
-    return jsonStringField(obj, key) orelse "";
 }

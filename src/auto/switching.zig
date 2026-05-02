@@ -264,7 +264,7 @@ pub fn refreshAutoSwitchCandidatesWithUsageFetcher(
 
     for (reg.accounts.items) |rec| {
         if (std.mem.eql(u8, rec.account_key, active)) continue;
-        if (rec.auth_mode != null and rec.auth_mode.? != .chatgpt) continue;
+        if (std.mem.eql(u8, rec.account_key, active)) continue;
         attempted += 1;
 
         const auth_path = registry.accountAuthPath(allocator, gemini_home, rec.account_key) catch continue;
@@ -402,14 +402,6 @@ pub fn refreshDaemonCandidateUsageByKeyWithFetcher(
     now_ns: i128,
 ) !SingleCandidateRefreshResult {
     const idx = registry.findAccountIndexByAccountKey(reg, account_key) orelse return .{};
-    const rec = &reg.accounts.items[idx];
-
-    if (rec.auth_mode != null and rec.auth_mode.? != .chatgpt) {
-        try refresh_state.markCandidateChecked(allocator, account_key, now_ns);
-        refresh_state.clearCandidateRejected(account_key);
-        return .{ .visited = true };
-    }
-
     const auth_path = registry.accountAuthPath(allocator, gemini_home, account_key) catch {
         try refresh_state.markCandidateChecked(allocator, account_key, now_ns);
         return .{ .visited = true };

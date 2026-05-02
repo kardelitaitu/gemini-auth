@@ -6,10 +6,8 @@ const parse = @import("parse.zig");
 const AccountRecord = common.AccountRecord;
 const freeAccountRecord = common.freeAccountRecord;
 const normalizeEmailAlloc = common.normalizeEmailAlloc;
-const parseAuthMode = parse.parseAuthMode;
-const parsePlanType = parse.parsePlanType;
-const parseRolloutSignature = parse.parseRolloutSignature;
 const parseUsage = parse.parseUsage;
+const parseRolloutSignature = parse.parseRolloutSignature;
 const readInt = parse.readInt;
 
 pub fn parseAccountRecord(allocator: std.mem.Allocator, obj: std.json.ObjectMap) !AccountRecord {
@@ -28,21 +26,17 @@ pub fn parseAccountRecord(allocator: std.mem.Allocator, obj: std.json.ObjectMap)
         .string => |s| s,
         else => return error.MissingAlias,
     };
+    if (account_key.len == 0) return error.MissingAccountKey;
+    if (email.len == 0) return error.MissingEmail;
+    if (alias.len == 0) return error.MissingAlias;
+
     var rec = AccountRecord{
         .account_key = try allocator.dupe(u8, account_key),
-        .chatgpt_account_id = switch (obj.get("chatgpt_account_id") orelse return error.MissingChatgptAccountId) {
-            .string => |s| try allocator.dupe(u8, s),
-            else => return error.MissingChatgptAccountId,
-        },
-        .chatgpt_user_id = switch (obj.get("chatgpt_user_id") orelse return error.MissingChatgptUserId) {
-            .string => |s| try allocator.dupe(u8, s),
-            else => return error.MissingChatgptUserId,
-        },
+        .google_user_id = try allocator.dupe(u8, account_key), // For Gemini, use account_key as google_user_id
         .email = try normalizeEmailAlloc(allocator, email),
         .alias = try allocator.dupe(u8, alias),
-        .account_name = try parseOptionalStoredStringAlloc(allocator, obj.get("account_name")),
+        .name = try parseOptionalStoredStringAlloc(allocator, obj.get("name")),
         .plan = null,
-        .auth_mode = null,
         .created_at = readInt(obj.get("created_at")) orelse std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds(),
         .last_used_at = readInt(obj.get("last_used_at")),
         .last_usage = null,
@@ -57,12 +51,6 @@ pub fn parseAccountRecord(allocator: std.mem.Allocator, obj: std.json.ObjectMap)
             else => {},
         }
     }
-    if (obj.get("auth_mode")) |m| {
-        switch (m) {
-            .string => |s| rec.auth_mode = parseAuthMode(s),
-            else => {},
-        }
-    }
     if (obj.get("last_usage")) |u| {
         rec.last_usage = parseUsage(allocator, u);
     }
@@ -73,11 +61,11 @@ pub fn parseAccountRecord(allocator: std.mem.Allocator, obj: std.json.ObjectMap)
 }
 
 fn parseOptionalStoredStringAlloc(allocator: std.mem.Allocator, value: ?std.json.Value) !?[]u8 {
-    const text = switch (value orelse return null) {
-        .string => |s| s,
+    const raw = switch (value orelse return null) {
+        .string => |raw| raw,
         .null => return null,
         else => return null,
     };
-    if (text.len == 0) return null;
-    return try allocator.dupe(u8, text);
+    if (raw.len == 0) return null;
+    return try allocator.dupe(u8, raw);
 }

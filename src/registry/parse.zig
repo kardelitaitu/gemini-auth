@@ -2,7 +2,6 @@ const std = @import("std");
 const common = @import("common.zig");
 
 const PlanType = common.PlanType;
-const AuthMode = common.AuthMode;
 const AutoSwitchConfig = common.AutoSwitchConfig;
 const ApiConfig = common.ApiConfig;
 const ApiConfigParseResult = common.ApiConfigParseResult;
@@ -15,20 +14,9 @@ const defaultApiConfig = common.defaultApiConfig;
 
 pub fn parsePlanType(s: []const u8) ?PlanType {
     if (std.mem.eql(u8, s, "free")) return .free;
-    if (std.mem.eql(u8, s, "plus")) return .plus;
-    if (std.mem.eql(u8, s, "prolite")) return .prolite;
     if (std.mem.eql(u8, s, "pro")) return .pro;
-    if (std.mem.eql(u8, s, "team")) return .team;
-    if (std.mem.eql(u8, s, "business")) return .business;
-    if (std.mem.eql(u8, s, "enterprise")) return .enterprise;
-    if (std.mem.eql(u8, s, "edu")) return .edu;
+    if (std.mem.eql(u8, s, "ultra")) return .ultra;
     return .unknown;
-}
-
-pub fn parseAuthMode(s: []const u8) ?AuthMode {
-    if (std.mem.eql(u8, s, "chatgpt")) return .chatgpt;
-    if (std.mem.eql(u8, s, "apikey")) return .apikey;
-    return null;
 }
 
 pub fn parseUsage(allocator: std.mem.Allocator, v: std.json.Value) ?RateLimitSnapshot {
@@ -74,39 +62,10 @@ pub fn parseAutoSwitch(allocator: std.mem.Allocator, cfg: *AutoSwitchConfig, v: 
     }
 }
 
-pub fn parseApiConfig(cfg: *ApiConfig, v: std.json.Value) void {
-    _ = parseApiConfigDetailed(cfg, v);
-}
-
 pub fn apiConfigNeedsRewrite(v: std.json.Value) bool {
     var cfg = defaultApiConfig();
     const result = parseApiConfigDetailed(&cfg, v);
     return !result.has_object or !result.has_usage or !result.has_account;
-}
-
-pub fn parseLiveConfig(cfg: *LiveConfig, v: std.json.Value) void {
-    const obj = switch (v) {
-        .object => |o| o,
-        else => return,
-    };
-    if (obj.get("interval_seconds")) |interval| {
-        if (parseLiveIntervalSeconds(interval)) |value| {
-            cfg.interval_seconds = value;
-        }
-    }
-}
-
-pub fn liveConfigNeedsRewrite(v: std.json.Value) bool {
-    const obj = switch (v) {
-        .object => |o| o,
-        else => return true,
-    };
-    if (obj.get("interval_seconds")) |interval| {
-        if (parseLiveIntervalSeconds(interval)) |_| {
-            return false;
-        }
-    }
-    return true;
 }
 
 pub fn parseApiConfigDetailed(cfg: *ApiConfig, v: std.json.Value) ApiConfigParseResult {
@@ -141,15 +100,42 @@ pub fn parseApiConfigDetailed(cfg: *ApiConfig, v: std.json.Value) ApiConfigParse
     return result;
 }
 
+pub fn parseLiveConfig(cfg: *LiveConfig, v: std.json.Value) void {
+    const obj = switch (v) {
+        .object => |o| o,
+        else => return,
+    };
+    if (obj.get("interval_seconds")) |interval| {
+        if (parseLiveIntervalSeconds(interval)) |value| {
+            cfg.interval_seconds = value;
+        }
+    }
+}
+
+pub fn liveConfigNeedsRewrite(v: std.json.Value) bool {
+    const obj = switch (v) {
+        .object => |o| o,
+        else => return true,
+    };
+    if (obj.get("interval_seconds")) |interval| {
+        if (parseLiveIntervalSeconds(interval)) |_| {
+            return false;
+        }
+    }
+    return true;
+}
+
 pub fn parseRolloutSignature(allocator: std.mem.Allocator, v: std.json.Value) ?RolloutSignature {
     const obj = switch (v) {
         .object => |o| o,
         else => return null,
     };
-    const path = switch (obj.get("path") orelse return null) {
+    const path_val = obj.get("path") orelse return null;
+    const path = switch (path_val) {
         .string => |s| s,
         else => return null,
     };
+    if (path.len == 0) return null;
     const event_timestamp_ms = readInt(obj.get("event_timestamp_ms")) orelse return null;
     return .{
         .path = allocator.dupe(u8, path) catch return null,
@@ -195,7 +181,9 @@ pub fn parseCredits(allocator: std.mem.Allocator, v: std.json.Value) ?CreditsSna
     var balance: ?[]u8 = null;
     if (obj.get("balance")) |b| {
         switch (b) {
-            .string => |s| balance = allocator.dupe(u8, s) catch null,
+            .string => |s| {
+                if (s.len > 0) balance = allocator.dupe(u8, s) catch null;
+            },
             else => {},
         }
     }
