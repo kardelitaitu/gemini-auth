@@ -27,29 +27,29 @@ var candidate_high_auth_path: ?[]const u8 = null;
 var candidate_low_auth_path: ?[]const u8 = null;
 var candidate_reject_auth_path: ?[]const u8 = null;
 const daemon_grouped_user_id = "user-auto-grouped";
-const daemon_primary_account_id = "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf";
+const daemon_primary_account_id = "account_123";
 const daemon_secondary_account_id = "518a44d9-ba75-4bad-87e5-ae9377042960";
 
 fn appendGroupedAccount(
     allocator: std.mem.Allocator,
     reg: *registry.Registry,
-    chatgpt_user_id: []const u8,
-    chatgpt_account_id: []const u8,
+    google_user_id: []const u8,
+    google_user_id: []const u8,
     email: []const u8,
     plan: registry.PlanType,
 ) !void {
-    const record_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ chatgpt_user_id, chatgpt_account_id });
+    const record_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ google_user_id, google_user_id });
     errdefer allocator.free(record_key);
 
     try reg.accounts.append(allocator, .{
         .account_key = record_key,
-        .chatgpt_account_id = try allocator.dupe(u8, chatgpt_account_id),
-        .chatgpt_user_id = try allocator.dupe(u8, chatgpt_user_id),
+        .google_user_id = try allocator.dupe(u8, google_user_id),
+        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, ""),
         .account_name = null,
         .plan = plan,
-        .auth_mode = .chatgpt,
+        .plan = .chatgpt,
         .created_at = std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds(),
         .last_used_at = null,
         .last_usage = null,
@@ -62,14 +62,14 @@ fn authJsonWithIds(
     allocator: std.mem.Allocator,
     email: []const u8,
     plan: []const u8,
-    chatgpt_user_id: []const u8,
-    chatgpt_account_id: []const u8,
+    google_user_id: []const u8,
+    google_user_id: []const u8,
 ) ![]u8 {
     const header = "{\"alg\":\"none\",\"typ\":\"JWT\"}";
     const payload = try std.fmt.allocPrint(
         allocator,
-        "{{\"email\":\"{s}\",\"https://api.openai.com/auth\":{{\"chatgpt_account_id\":\"{s}\",\"chatgpt_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
-        .{ email, chatgpt_account_id, chatgpt_user_id, chatgpt_user_id, plan },
+        "{{\"email\":\"{s}\",\"https://www.googleapis.com/auth\":{{\"google_user_id\":\"{s}\",\"google_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
+        .{ email, google_user_id, google_user_id, google_user_id, plan },
     );
     defer allocator.free(payload);
 
@@ -83,7 +83,7 @@ fn authJsonWithIds(
     return try std.fmt.allocPrint(
         allocator,
         "{{\"tokens\":{{\"access_token\":\"access-{s}\",\"account_id\":\"{s}\",\"id_token\":\"{s}\"}}}}",
-        .{ email, chatgpt_account_id, jwt },
+        .{ email, google_user_id, jwt },
     );
 }
 
@@ -92,13 +92,13 @@ fn writeActiveAuthWithIds(
     gemini_home: []const u8,
     email: []const u8,
     plan: []const u8,
-    chatgpt_user_id: []const u8,
-    chatgpt_account_id: []const u8,
+    google_user_id: []const u8,
+    google_user_id: []const u8,
 ) !void {
     const auth_path = try registry.activeAuthPath(allocator, gemini_home);
     defer allocator.free(auth_path);
 
-    const auth_json = try authJsonWithIds(allocator, email, plan, chatgpt_user_id, chatgpt_account_id);
+    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id, google_user_id);
     defer allocator.free(auth_json);
     try fs.cwd().writeFile(.{ .sub_path = auth_path, .data = auth_json });
 }
@@ -108,16 +108,16 @@ fn writeAccountSnapshotWithIds(
     gemini_home: []const u8,
     email: []const u8,
     plan: []const u8,
-    chatgpt_user_id: []const u8,
-    chatgpt_account_id: []const u8,
+    google_user_id: []const u8,
+    google_user_id: []const u8,
 ) !void {
-    const account_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ chatgpt_user_id, chatgpt_account_id });
+    const account_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ google_user_id, google_user_id });
     defer allocator.free(account_key);
 
     const auth_path = try registry.accountAuthPath(allocator, gemini_home, account_key);
     defer allocator.free(auth_path);
 
-    const auth_json = try authJsonWithIds(allocator, email, plan, chatgpt_user_id, chatgpt_account_id);
+    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id, google_user_id);
     defer allocator.free(auth_json);
     try fs.cwd().writeFile(.{ .sub_path = auth_path, .data = auth_json });
 }
@@ -1220,7 +1220,7 @@ test "Scenario: Given daemon api mode and an api-key candidate when auto switchi
     try fs.cwd().writeFile(.{ .sub_path = active_path, .data = active_auth });
 
     const candidate_idx = fixtures.findAccountIndexByEmail(&reg, "apikey@example.com") orelse return error.TestExpectedEqual;
-    reg.accounts.items[candidate_idx].auth_mode = .apikey;
+    reg.accounts.items[candidate_idx].plan = .apikey;
 
     candidate_api_fetch_count = 0;
     var refresh_state = auto.DaemonRefreshState{};

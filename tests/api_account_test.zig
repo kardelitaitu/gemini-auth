@@ -26,14 +26,14 @@ test "parse account names response ignores default and keeps one real account" {
         \\        "name": "Default"
         \\      }
         \\    },
-        \\    "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf": {
+        \\    "account_123": {
         \\      "account": {
-        \\        "account_id": "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf",
+        \\        "account_id": "account_123",
         \\        "name": "Primary Workspace"
         \\      }
         \\    }
         \\  },
-        \\  "account_ordering": ["67fe2bbb-0de6-49a4-b2b3-d1df366d1faf"]
+        \\  "account_ordering": ["account_123"]
         \\}
     ;
 
@@ -42,7 +42,7 @@ test "parse account names response ignores default and keeps one real account" {
 
     try std.testing.expect(entries != null);
     try std.testing.expectEqual(@as(usize, 1), entries.?.len);
-    try std.testing.expect(std.mem.eql(u8, entries.?[0].account_id, "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf"));
+    try std.testing.expect(std.mem.eql(u8, entries.?[0].account_id, "account_123"));
     try std.testing.expect(entries.?[0].account_name != null);
     try std.testing.expect(std.mem.eql(u8, entries.?[0].account_name.?, "Primary Workspace"));
 }
@@ -52,9 +52,9 @@ test "parse account names response keeps multiple non-default accounts" {
     const body =
         \\{
         \\  "accounts": {
-        \\    "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf": {
+        \\    "account_123": {
         \\      "account": {
-        \\        "account_id": "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf",
+        \\        "account_id": "account_123",
         \\        "name": "Primary Workspace"
         \\      }
         \\    },
@@ -66,7 +66,7 @@ test "parse account names response keeps multiple non-default accounts" {
         \\    }
         \\  },
         \\  "account_ordering": [
-        \\    "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf",
+        \\    "account_123",
         \\    "518a44d9-ba75-4bad-87e5-ae9377042960"
         \\  ]
         \\}
@@ -77,7 +77,7 @@ test "parse account names response keeps multiple non-default accounts" {
 
     try std.testing.expect(entries != null);
     try std.testing.expectEqual(@as(usize, 2), entries.?.len);
-    const primary = findEntryByAccountId(entries.?, "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf") orelse return error.TestExpectedEqual;
+    const primary = findEntryByAccountId(entries.?, "account_123") orelse return error.TestExpectedEqual;
     const backup = findEntryByAccountId(entries.?, "518a44d9-ba75-4bad-87e5-ae9377042960") orelse return error.TestExpectedEqual;
     try std.testing.expect(primary.account_name != null);
     try std.testing.expect(std.mem.eql(u8, primary.account_name.?, "Primary Workspace"));
@@ -90,14 +90,14 @@ test "parse personal account response keeps null name as null" {
     const body =
         \\{
         \\  "accounts": {
-        \\    "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf": {
+        \\    "account_123": {
         \\      "account": {
-        \\        "account_id": "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf",
+        \\        "account_id": "account_123",
         \\        "name": null
         \\      }
         \\    }
         \\  },
-        \\  "account_ordering": ["67fe2bbb-0de6-49a4-b2b3-d1df366d1faf"]
+        \\  "account_ordering": ["account_123"]
         \\}
     ;
 
@@ -114,14 +114,14 @@ test "parse personal account response normalizes empty name to null" {
     const body =
         \\{
         \\  "accounts": {
-        \\    "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf": {
+        \\    "account_123": {
         \\      "account": {
-        \\        "account_id": "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf",
+        \\        "account_id": "account_123",
         \\        "name": ""
         \\      }
         \\    }
         \\  },
-        \\  "account_ordering": ["67fe2bbb-0de6-49a4-b2b3-d1df366d1faf"]
+        \\  "account_ordering": ["account_123"]
         \\}
     ;
 

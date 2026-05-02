@@ -14,15 +14,15 @@ fn b64url(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
 fn legacySnapshotNameForEmail(allocator: std.mem.Allocator, email: []const u8) ![]u8 {
     const key = try b64url(allocator, email);
     defer allocator.free(key);
-    return std.fmt.allocPrint(allocator, "{s}.auth.json", .{key});
+    return std.fmt.allocPrint(allocator, "{s}.oauth_creds.json", .{key});
 }
 
 fn accountKeyForEmailAlloc(allocator: std.mem.Allocator, email: []const u8) ![]u8 {
-    const chatgpt_user_id = try chatgptUserIdForEmailAlloc(allocator, email);
-    defer allocator.free(chatgpt_user_id);
-    const chatgpt_account_id = try chatgptAccountIdForEmailAlloc(allocator, email);
-    defer allocator.free(chatgpt_account_id);
-    return std.fmt.allocPrint(allocator, "{s}::{s}", .{ chatgpt_user_id, chatgpt_account_id });
+    const google_user_id = try chatgptUserIdForEmailAlloc(allocator, email);
+    defer allocator.free(google_user_id);
+    const google_user_id = try chatgptAccountIdForEmailAlloc(allocator, email);
+    defer allocator.free(google_user_id);
+    return std.fmt.allocPrint(allocator, "{s}::{s}", .{ google_user_id, google_user_id });
 }
 
 fn hashPart(seed: u64, email: []const u8, modulus: u64) u64 {
@@ -56,15 +56,15 @@ fn chatgptUserIdForEmailAlloc(allocator: std.mem.Allocator, email: []const u8) !
 }
 
 fn authJsonWithEmailPlan(allocator: std.mem.Allocator, email: []const u8, plan: []const u8) ![]u8 {
-    const chatgpt_account_id = try chatgptAccountIdForEmailAlloc(allocator, email);
-    defer allocator.free(chatgpt_account_id);
-    const chatgpt_user_id = try chatgptUserIdForEmailAlloc(allocator, email);
-    defer allocator.free(chatgpt_user_id);
+    const google_user_id = try chatgptAccountIdForEmailAlloc(allocator, email);
+    defer allocator.free(google_user_id);
+    const google_user_id = try chatgptUserIdForEmailAlloc(allocator, email);
+    defer allocator.free(google_user_id);
     const header = "{\"alg\":\"none\",\"typ\":\"JWT\"}";
     const payload = try std.fmt.allocPrint(
         allocator,
-        "{{\"email\":\"{s}\",\"https://api.openai.com/auth\":{{\"chatgpt_account_id\":\"{s}\",\"chatgpt_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
-        .{ email, chatgpt_account_id, chatgpt_user_id, chatgpt_user_id, plan },
+        "{{\"email\":\"{s}\",\"https://www.googleapis.com/auth\":{{\"google_user_id\":\"{s}\",\"google_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
+        .{ email, google_user_id, google_user_id, google_user_id, plan },
     );
     defer allocator.free(payload);
 
@@ -78,22 +78,22 @@ fn authJsonWithEmailPlan(allocator: std.mem.Allocator, email: []const u8, plan: 
     return try std.fmt.allocPrint(
         allocator,
         "{{\"tokens\":{{\"account_id\":\"{s}\",\"id_token\":\"{s}\"}}}}",
-        .{ chatgpt_account_id, jwt },
+        .{ google_user_id, jwt },
     );
 }
 
 fn authJsonWithExplicitIds(
     allocator: std.mem.Allocator,
     email: []const u8,
-    chatgpt_account_id: []const u8,
-    chatgpt_user_id: []const u8,
+    google_user_id: []const u8,
+    google_user_id: []const u8,
     plan: []const u8,
 ) ![]u8 {
     const header = "{\"alg\":\"none\",\"typ\":\"JWT\"}";
     const payload = try std.fmt.allocPrint(
         allocator,
-        "{{\"email\":\"{s}\",\"https://api.openai.com/auth\":{{\"chatgpt_account_id\":\"{s}\",\"chatgpt_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
-        .{ email, chatgpt_account_id, chatgpt_user_id, chatgpt_user_id, plan },
+        "{{\"email\":\"{s}\",\"https://www.googleapis.com/auth\":{{\"google_user_id\":\"{s}\",\"google_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
+        .{ email, google_user_id, google_user_id, google_user_id, plan },
     );
     defer allocator.free(payload);
 
@@ -107,7 +107,7 @@ fn authJsonWithExplicitIds(
     return try std.fmt.allocPrint(
         allocator,
         "{{\"tokens\":{{\"account_id\":\"{s}\",\"id_token\":\"{s}\"}}}}",
-        .{ chatgpt_account_id, jwt },
+        .{ google_user_id, jwt },
     );
 }
 
@@ -184,7 +184,7 @@ test "Scenario: Given v2 registry when loading then it migrates to record-key la
     const legacy_rel = try fs.path.join(gpa, &[_][]const u8{ "accounts", legacy_name });
     defer gpa.free(legacy_rel);
     try tmp.dir.writeFile(.{ .sub_path = legacy_rel, .data = auth_json });
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260312-000000", .data = auth_json });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.20260312-000000", .data = auth_json });
 
     try tmp.dir.writeFile(.{
         .sub_path = "accounts/registry.json",
@@ -197,7 +197,7 @@ test "Scenario: Given v2 registry when loading then it migrates to record-key la
         \\      "email": "legacy@example.com",
         \\      "alias": "legacy",
         \\      "plan": "pro",
-        \\      "auth_mode": "chatgpt",
+        \\      "plan": "chatgpt",
         \\      "created_at": 1,
         \\      "last_used_at": 2,
         \\      "last_usage_at": 3,
@@ -207,7 +207,7 @@ test "Scenario: Given v2 registry when loading then it migrates to record-key la
         \\          "window_minutes": 300,
         \\          "resets_at": 123
         \\        },
-        \\        "plan_type": "team"
+        \\        "plan_type": "ultra"
         \\      }
         \\    }
         \\  ]
@@ -264,14 +264,14 @@ test "Scenario: Given purge import with file when rebuilding then current auth i
 
     const active_auth = try authJsonWithEmailPlan(gpa, "active@example.com", "team");
     defer gpa.free(active_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "auth.json", .data = active_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "oauth_creds.json", .data = active_auth });
 
     try tmp.dir.writeFile(.{
         .sub_path = "accounts/registry.json",
         .data =
         \\{
         \\  "schema_version": 4,
-        \\  "active_account_key": "user-r4g1strystale000001::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf",
+        \\  "active_account_key": "user-r4g1strystale000001::account_123",
         \\  "active_account_activated_at_ms": 1735689600000,
         \\  "auto_switch": {
         \\    "enabled": true,
@@ -283,13 +283,13 @@ test "Scenario: Given purge import with file when rebuilding then current auth i
         \\  },
         \\  "accounts": [
         \\    {
-        \\      "account_key": "user-r4g1strystale000001::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf",
-        \\      "chatgpt_account_id": "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf",
-        \\      "chatgpt_user_id": "user-r4g1strystale000001",
+        \\      "account_key": "user-r4g1strystale000001::account_123",
+        \\      "google_user_id": "account_123",
+        \\      "google_user_id": "user-r4g1strystale000001",
         \\      "email": "stale@example.com",
         \\      "alias": "stale",
         \\      "plan": "pro",
-        \\      "auth_mode": "chatgpt",
+        \\      "plan": "chatgpt",
         \\      "created_at": 1,
         \\      "last_used_at": null,
         \\      "last_usage_at": 9,
@@ -327,7 +327,7 @@ test "Scenario: Given purge import with file when rebuilding then current auth i
     try std.testing.expect(loaded.active_account_key != null);
     try std.testing.expect(std.mem.eql(u8, loaded.active_account_key.?, active_account_key));
 
-    const stale_idx = registry.findAccountIndexByAccountKey(&loaded, "user-r4g1strystale000001::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf");
+    const stale_idx = registry.findAccountIndexByAccountKey(&loaded, "user-r4g1strystale000001::account_123");
     try std.testing.expect(stale_idx == null);
 
     const imported_account_id = try accountKeyForEmailAlloc(gpa, "personal@example.com");
@@ -457,7 +457,7 @@ test "Scenario: Given purge without path when rebuilding then it scans account s
     defer gpa.free(snapshot_rel);
     try tmp.dir.writeFile(.{ .sub_path = snapshot_rel, .data = snapshot_auth });
     try tmp.dir.writeFile(.{ .sub_path = "accounts/registry.json", .data = "{\"bad\":\"registry\"}" });
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.1", .data = "backup" });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.1", .data = "backup" });
 
     var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
@@ -479,7 +479,7 @@ test "Scenario: Given purge without path and only auth backups when rebuilding t
 
     const backup_auth = try authJsonWithEmailPlan(gpa, "backup-only@example.com", "team");
     defer gpa.free(backup_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-010101", .data = backup_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.20260317-010101", .data = backup_auth });
 
     var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
@@ -529,7 +529,7 @@ test "Scenario: Given purge without a recoverable active auth when rebuilding th
     try tmp.dir.writeFile(.{ .sub_path = alpha_snapshot_rel, .data = alpha_auth });
 
     const stale_auth = "{\"broken\":true}";
-    try tmp.dir.writeFile(.{ .sub_path = "auth.json", .data = stale_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "oauth_creds.json", .data = stale_auth });
 
     var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
@@ -561,7 +561,7 @@ test "Scenario: Given purge without a recoverable active auth when rebuilding th
     var backup_count: usize = 0;
     while (try it.next()) |entry| {
         if (entry.kind != .file) continue;
-        if (!std.mem.startsWith(u8, entry.name, "auth.json.bak.")) continue;
+        if (!std.mem.startsWith(u8, entry.name, "oauth_creds.json.bak.")) continue;
         backup_count += 1;
         if (backup_name == null) {
             backup_name = try gpa.dupe(u8, entry.name);
@@ -590,8 +590,8 @@ test "Scenario: Given purge without path and an empty snapshot when rebuilding t
 
     const backup_auth = try authJsonWithEmailPlan(gpa, "backup-valid@example.com", "team");
     defer gpa.free(backup_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-010101", .data = backup_auth });
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-020202", .data = "" });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.20260317-010101", .data = backup_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.20260317-020202", .data = "" });
 
     var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
@@ -602,7 +602,7 @@ test "Scenario: Given purge without path and an empty snapshot when rebuilding t
     var found_malformed = false;
     for (report.events.items) |event| {
         if (event.outcome != .skipped) continue;
-        if (std.mem.eql(u8, event.label, "auth.json.bak.20260317-020202")) {
+        if (std.mem.eql(u8, event.label, "oauth_creds.json.bak.20260317-020202")) {
             found_malformed = std.mem.eql(u8, event.reason.?, "MalformedJson");
             break;
         }
@@ -628,8 +628,8 @@ test "Scenario: Given purge without path and a broken snapshot symlink when rebu
 
     const backup_auth = try authJsonWithEmailPlan(gpa, "backup-symlink@example.com", "team");
     defer gpa.free(backup_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-010101", .data = backup_auth });
-    try tmp.dir.symLink("missing.auth.json", "accounts/auth.json.bak.20260317-020202", .{});
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.20260317-010101", .data = backup_auth });
+    try tmp.dir.symLink("missing.oauth_creds.json", "accounts/oauth_creds.json.bak.20260317-020202", .{});
 
     var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
@@ -640,7 +640,7 @@ test "Scenario: Given purge without path and a broken snapshot symlink when rebu
     var found_missing = false;
     for (report.events.items) |event| {
         if (event.outcome != .skipped) continue;
-        if (std.mem.eql(u8, event.label, "auth.json.bak.20260317-020202")) {
+        if (std.mem.eql(u8, event.label, "oauth_creds.json.bak.20260317-020202")) {
             found_missing = std.mem.eql(u8, event.reason.?, "FileNotFound");
             break;
         }
@@ -665,7 +665,7 @@ test "Scenario: Given purge without path and duplicate snapshots when rebuilding
     const duplicate_record_key = "1::acct1";
     const old_backup_auth = try authJsonWithExplicitIds(gpa, "zed@example.com", "acct1", "1", "free");
     defer gpa.free(old_backup_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-010101", .data = old_backup_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.20260317-010101", .data = old_backup_auth });
 
     const current_snapshot_auth = try authJsonWithExplicitIds(gpa, "zed@example.com", "acct1", "1", "team");
     defer gpa.free(current_snapshot_auth);
@@ -680,7 +680,7 @@ test "Scenario: Given purge without path and duplicate snapshots when rebuilding
 
     const alpha_auth = try authJsonWithEmailPlan(gpa, "alpha@example.com", "plus");
     defer gpa.free(alpha_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-020202", .data = alpha_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.20260317-020202", .data = alpha_auth });
 
     var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
@@ -710,27 +710,27 @@ test "Scenario: Given same team account id across different users when purging t
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
-    const shared_chatgpt_account_id = "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf";
+    const shared_google_user_id = "account_123";
 
     const first_auth = try authJsonWithExplicitIds(
         gpa,
         "trade5258@bytebit.ggff.net",
-        shared_chatgpt_account_id,
+        shared_google_user_id,
         "user-VcL6uT0HoEblRE4RSV7NsUDI",
         "team",
     );
     defer gpa.free(first_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-154910", .data = first_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.20260317-154910", .data = first_auth });
 
     const second_auth = try authJsonWithExplicitIds(
         gpa,
         "cloning5942@bytebit.ggff.net",
-        shared_chatgpt_account_id,
-        "user-ESYgcy2QkOGZc0NoxSlFCeVT",
+        shared_google_user_id,
+        "google_user_123",
         "team",
     );
     defer gpa.free(second_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-171806", .data = second_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.20260317-171806", .data = second_auth });
 
     var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
@@ -739,17 +739,17 @@ test "Scenario: Given same team account id across different users when purging t
     defer loaded.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 2), loaded.accounts.items.len);
 
-    const first_record_key = "user-VcL6uT0HoEblRE4RSV7NsUDI::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf";
-    const second_record_key = "user-ESYgcy2QkOGZc0NoxSlFCeVT::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf";
+    const first_record_key = "user-VcL6uT0HoEblRE4RSV7NsUDI::account_123";
+    const second_record_key = "google_user_123::account_123";
 
     const first_idx = registry.findAccountIndexByAccountKey(&loaded, first_record_key) orelse return error.TestExpectedEqual;
     const second_idx = registry.findAccountIndexByAccountKey(&loaded, second_record_key) orelse return error.TestExpectedEqual;
 
     try std.testing.expect(!std.mem.eql(u8, loaded.accounts.items[first_idx].account_key, loaded.accounts.items[second_idx].account_key));
-    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[first_idx].chatgpt_account_id, shared_chatgpt_account_id));
-    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[second_idx].chatgpt_account_id, shared_chatgpt_account_id));
-    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[first_idx].chatgpt_user_id, "user-VcL6uT0HoEblRE4RSV7NsUDI"));
-    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[second_idx].chatgpt_user_id, "user-ESYgcy2QkOGZc0NoxSlFCeVT"));
+    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[first_idx].google_user_id, shared_google_user_id));
+    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[second_idx].google_user_id, shared_google_user_id));
+    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[first_idx].google_user_id, "user-VcL6uT0HoEblRE4RSV7NsUDI"));
+    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[second_idx].google_user_id, "google_user_123"));
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[first_idx].email, "trade5258@bytebit.ggff.net"));
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[second_idx].email, "cloning5942@bytebit.ggff.net"));
 }
@@ -763,28 +763,28 @@ test "Scenario: Given same user across team and free workspaces when purging the
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
-    const shared_chatgpt_user_id = "user-NuLAf1g5RIAwHDQxfoHfgcPo";
+    const shared_google_user_id = "user-NuLAf1g5RIAwHDQxfoHfgcPo";
     const shared_email = "flashback6936@8bits.ggff.net";
 
     const team_auth = try authJsonWithExplicitIds(
         gpa,
         shared_email,
         "d52355a3-bfa6-4d2b-882e-d4a2927f488c",
-        shared_chatgpt_user_id,
+        shared_google_user_id,
         "team",
     );
     defer gpa.free(team_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-135020", .data = team_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.20260317-135020", .data = team_auth });
 
     const free_auth = try authJsonWithExplicitIds(
         gpa,
         shared_email,
         "fe43c186-7b49-4880-8744-e662b796a9d9",
-        shared_chatgpt_user_id,
+        shared_google_user_id,
         "free",
     );
     defer gpa.free(free_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/auth.json.bak.20260317-172239", .data = free_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.20260317-172239", .data = free_auth });
 
     var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);
@@ -800,10 +800,10 @@ test "Scenario: Given same user across team and free workspaces when purging the
     const free_idx = registry.findAccountIndexByAccountKey(&loaded, free_record_key) orelse return error.TestExpectedEqual;
 
     try std.testing.expect(!std.mem.eql(u8, loaded.accounts.items[team_idx].account_key, loaded.accounts.items[free_idx].account_key));
-    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[team_idx].chatgpt_user_id, shared_chatgpt_user_id));
-    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[free_idx].chatgpt_user_id, shared_chatgpt_user_id));
-    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[team_idx].chatgpt_account_id, "d52355a3-bfa6-4d2b-882e-d4a2927f488c"));
-    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[free_idx].chatgpt_account_id, "fe43c186-7b49-4880-8744-e662b796a9d9"));
+    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[team_idx].google_user_id, shared_google_user_id));
+    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[free_idx].google_user_id, shared_google_user_id));
+    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[team_idx].google_user_id, "d52355a3-bfa6-4d2b-882e-d4a2927f488c"));
+    try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[free_idx].google_user_id, "fe43c186-7b49-4880-8744-e662b796a9d9"));
     try std.testing.expectEqual(registry.PlanType.team, loaded.accounts.items[team_idx].plan.?);
     try std.testing.expectEqual(registry.PlanType.free, loaded.accounts.items[free_idx].plan.?);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[team_idx].email, shared_email));
@@ -820,7 +820,7 @@ test "Scenario: Given purge without accounts directory when rebuilding then curr
 
     const active_auth = try authJsonWithEmailPlan(gpa, "active@example.com", "team");
     defer gpa.free(active_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "auth.json", .data = active_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "oauth_creds.json", .data = active_auth });
 
     var report = try registry.purgeRegistryFromImportSource(gpa, gemini_home, null, null);
     defer report.deinit(gpa);

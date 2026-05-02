@@ -22,17 +22,17 @@ fn appendAccount(
     plan: registry.PlanType,
 ) !void {
     const sep = std.mem.lastIndexOf(u8, record_key, "::") orelse return error.InvalidRecordKey;
-    const chatgpt_user_id = record_key[0..sep];
-    const chatgpt_account_id = record_key[sep + 2 ..];
+    const google_user_id = record_key[0..sep];
+    const google_user_id = record_key[sep + 2 ..];
     try reg.accounts.append(allocator, .{
         .account_key = try allocator.dupe(u8, record_key),
-        .chatgpt_account_id = try allocator.dupe(u8, chatgpt_account_id),
-        .chatgpt_user_id = try allocator.dupe(u8, chatgpt_user_id),
+        .google_user_id = try allocator.dupe(u8, google_user_id),
+        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, alias),
         .account_name = null,
         .plan = plan,
-        .auth_mode = .chatgpt,
+        .plan = .chatgpt,
         .created_at = 1,
         .last_used_at = null,
         .last_usage = null,
@@ -46,10 +46,10 @@ test "Scenario: Given same email with two team accounts and one plus account whe
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::a4021fa5-998b-4774-989f-784fa69c367b", "user@example.com", "", .plus);
-    try registry.setActiveAccountKey(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::518a44d9-ba75-4bad-87e5-ae9377042960");
+    try appendAccount(gpa, &reg, "google_user_123::account_123", "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, "google_user_123::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, "google_user_123::a4021fa5-998b-4774-989f-784fa69c367b", "user@example.com", "", .plus);
+    try registry.setActiveAccountKey(gpa, &reg, "google_user_123::518a44d9-ba75-4bad-87e5-ae9377042960");
 
     var rows = try display_rows.buildDisplayRows(gpa, &reg, null);
     defer rows.deinit(gpa);
@@ -69,8 +69,8 @@ test "Scenario: Given grouped accounts with aliases when building display rows t
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "user@example.com", "work", .team);
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "backup", .team);
+    try appendAccount(gpa, &reg, "google_user_123::account_123", "user@example.com", "work", .team);
+    try appendAccount(gpa, &reg, "google_user_123::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "backup", .team);
 
     var rows = try display_rows.buildDisplayRows(gpa, &reg, null);
     defer rows.deinit(gpa);
@@ -85,8 +85,8 @@ test "Scenario: Given grouped accounts with a prolite record when building displ
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "user@example.com", "", .prolite);
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, "google_user_123::account_123", "user@example.com", "", .prolite);
+    try appendAccount(gpa, &reg, "google_user_123::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "", .team);
 
     var rows = try display_rows.buildDisplayRows(gpa, &reg, null);
     defer rows.deinit(gpa);
@@ -102,14 +102,14 @@ test "Scenario: Given a grouped account with a fresher usage plan when building 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "user@example.com", "", .plus);
+    try appendAccount(gpa, &reg, "google_user_123::account_123", "user@example.com", "", .plus);
     reg.accounts.items[0].last_usage = .{
         .primary = null,
         .secondary = null,
         .credits = null,
         .plan_type = .team,
     };
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "", .free);
+    try appendAccount(gpa, &reg, "google_user_123::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "", .free);
 
     var rows = try display_rows.buildDisplayRows(gpa, &reg, null);
     defer rows.deinit(gpa);
@@ -125,9 +125,9 @@ test "Scenario: Given same-email accounts filtered down to one row when building
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "user@example.com", "work", .team);
+    try appendAccount(gpa, &reg, "google_user_123::account_123", "user@example.com", "work", .team);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Primary Workspace");
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::a4021fa5-998b-4774-989f-784fa69c367b", "user@example.com", "", .plus);
+    try appendAccount(gpa, &reg, "google_user_123::a4021fa5-998b-4774-989f-784fa69c367b", "user@example.com", "", .plus);
 
     var grouped_rows = try display_rows.buildDisplayRows(gpa, &reg, null);
     defer grouped_rows.deinit(gpa);
@@ -148,7 +148,7 @@ test "Scenario: Given singleton accounts with alias and account name combination
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-4QmYj7PkN2sLx8AcVbR3TwHd::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "alias-name@example.com", "work", .team);
+    try appendAccount(gpa, &reg, "user-4QmYj7PkN2sLx8AcVbR3TwHd::account_123", "alias-name@example.com", "work", .team);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Primary Workspace");
     try appendAccount(gpa, &reg, "user-8LnCq5VzR1mHx9SfKpT4JdWe::518a44d9-ba75-4bad-87e5-ae9377042960", "alias-only@example.com", "backup", .team);
     try appendAccount(gpa, &reg, "user-2RbFk6NsQ8vLp3XtJmW7CyHa::a4021fa5-998b-4774-989f-784fa69c367b", "name-only@example.com", "", .team);
@@ -170,7 +170,7 @@ test "Scenario: Given mixed singleton and grouped accounts when building display
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-6JpMv8XrT3nLc9QsHbW4DyKa::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "solo@example.com", "solo", .team);
+    try appendAccount(gpa, &reg, "user-6JpMv8XrT3nLc9QsHbW4DyKa::account_123", "solo@example.com", "solo", .team);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Solo Workspace");
     try appendAccount(gpa, &reg, "user-1ZdKr5NtV8mQx3LsHpW7CyFb::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "work", .team);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Primary Workspace");
@@ -192,11 +192,11 @@ test "Scenario: Given grouped accounts with account names when building display 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "user@example.com", "work", .team);
+    try appendAccount(gpa, &reg, "google_user_123::account_123", "user@example.com", "work", .team);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Primary Workspace");
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, "google_user_123::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "", .team);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Backup Workspace");
-    try appendAccount(gpa, &reg, "user-ESYgcy2QkOGZc0NoxSlFCeVT::a4021fa5-998b-4774-989f-784fa69c367b", "user@example.com", "", .plus);
+    try appendAccount(gpa, &reg, "google_user_123::a4021fa5-998b-4774-989f-784fa69c367b", "user@example.com", "", .plus);
 
     var rows = try display_rows.buildDisplayRows(gpa, &reg, null);
     defer rows.deinit(gpa);

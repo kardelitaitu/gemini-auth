@@ -299,8 +299,8 @@ test "registry load defaults missing account_name field to null" {
             \\  "active_account_key": null,
             \\  "accounts": [
             \\    {
-            \\      "google_user_id": "user-ESYgcy2QkOGZc0NoxSlFCeVT::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf",
-            \\      "account_key": "user-ESYgcy2QkOGZc0NoxSlFCeVT",
+            \\      "google_user_id": "google_user_123::account_123",
+            \\      "account_key": "google_user_123",
             \\      "email": "a@b.com",
             \\      "alias": "work",
             \\      "plan": "pro",
@@ -567,15 +567,15 @@ test "legacy schema registry with legacy rollout attribution rewrites to normali
         .data =
             \\{
             \\  "schema_version": 3,
-            \\  "active_account_key": "user-ESYgcy2QkOGZc0NoxSlFCeVT::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf",
+            \\  "active_account_key": "google_user_123::account_123",
             \\  "last_attributed_rollout": {
             \\    "path": "/tmp/sessions/run-1/rollout-a.jsonl",
             \\    "event_timestamp_ms": 1735689600000
             \\  },
             \\  "accounts": [
             \\    {
-            \\      "google_user_id": "user-ESYgcy2QkOGZc0NoxSlFCeVT",
-            \\      "account_key": "user-ESYgcy2QkOGZc0NoxSlFCeVT",
+            \\      "google_user_id": "google_user_123",
+            \\      "account_key": "google_user_123",
             \\      "email": "a@b.com",
             \\      "alias": "work",
             \\      "plan": "pro",
@@ -789,7 +789,7 @@ test "saveRegistry hardens registry.json to 0600 even when contents are unchange
     try expectModeUnix(registry_path, 0o600);
 }
 
-// Note: Auth backup tests simplified for Gemini (uses oauth_creds.json instead of auth.json)
+// Note: Auth backup tests simplified for Gemini (uses oauth_creds.json instead of oauth_creds.json)
 
 test "auth backup only on change" {
     var gpa = std.testing.allocator;
@@ -1090,7 +1090,7 @@ test "clean uses a whitelist and only removes non-current files under accounts" 
     try tmp.dir.writeFile(.{ .sub_path = "accounts/oauth_creds.json.bak.2", .data = "a2" });
     try tmp.dir.writeFile(.{ .sub_path = "accounts/registry.json.bak.1", .data = "r1" });
     try tmp.dir.writeFile(.{ .sub_path = "accounts/registry.json.bak.2", .data = "r2" });
-    try tmp.dir.writeFile(.{ .sub_path = "accounts/" ++ registry.account_name_refresh_lock_file_name, .data = "" });
+    try tmp.dir.writeFile(.{ .sub_path = "accounts/" ++ registry.account_lock_file_name, .data = "" });
     try tmp.dir.writeFile(.{ .sub_path = "accounts/notes.txt", .data = "junk" });
     try tmp.dir.makePath("accounts/tmpdir");
     try tmp.dir.writeFile(.{ .sub_path = "accounts/tmpdir/old.txt", .data = "junk" });
@@ -1108,6 +1108,6 @@ test "clean uses a whitelist and only removes non-current files under accounts" 
 
     var keep_file = try tmp.dir.openFile(keep_rel_path, .{});
     keep_file.close();
-    var refresh_lock = try tmp.dir.openFile("accounts/" ++ registry.account_name_refresh_lock_file_name, .{});
+    var refresh_lock = try tmp.dir.openFile("accounts/" ++ registry.account_lock_file_name, .{});
     refresh_lock.close();
 }

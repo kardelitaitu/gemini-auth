@@ -170,14 +170,14 @@ fn writeSuccessfulFakeGemini(dir: fs.Dir) !void {
                 "set \"GEMINI_HOME_DIR=%GEMINI_HOME%\"\r\n" ++
                 "if \"%GEMINI_HOME_DIR%\"==\"\" set \"GEMINI_HOME_DIR=%HOME%\\.gemini\"\r\n" ++
                 "if not exist \"%GEMINI_HOME_DIR%\" mkdir \"%GEMINI_HOME_DIR%\"\r\n" ++
-                "copy /Y \"%HOME%\\fake-auth.json\" \"%GEMINI_HOME_DIR%\\auth.json\" >NUL\r\n" ++
+                "copy /Y \"%HOME%\\fake-oauth_creds.json\" \"%GEMINI_HOME_DIR%\\oauth_creds.json\" >NUL\r\n" ++
                 "exit /b 0\r\n"
         else
             "#!/bin/sh\n" ++
                 "printf '%s\\n' \"$*\" > \"$HOME/fake-gemini-argv.txt\"\n" ++
                 "GEMINI_HOME_DIR=\"${GEMINI_HOME:-$HOME/.gemini}\"\n" ++
                 "mkdir -p \"$GEMINI_HOME_DIR\"\n" ++
-                "cp \"$HOME/fake-auth.json\" \"$GEMINI_HOME_DIR/auth.json\"\n" ++
+                "cp \"$HOME/fake-oauth_creds.json\" \"$GEMINI_HOME_DIR/oauth_creds.json\"\n" ++
                 "exit 0\n";
     const sub_path = fakeGeminiCommandPath();
     try dir.writeFile(.{ .sub_path = sub_path, .data = script });
@@ -477,7 +477,7 @@ fn expectFailure(result: std.process.RunResult) !void {
 }
 
 fn authJsonPathAlloc(allocator: std.mem.Allocator, home_root: []const u8) ![]u8 {
-    return fs.path.join(allocator, &[_][]const u8{ home_root, ".gemini", "auth.json" });
+    return fs.path.join(allocator, &[_][]const u8{ home_root, ".gemini", "oauth_creds.json" });
 }
 
 fn geminiHomeAlloc(allocator: std.mem.Allocator, home_root: []const u8) ![]u8 {
@@ -492,7 +492,7 @@ fn countAuthBackups(dir: fs.Dir, rel_path: []const u8) !usize {
     var it = accounts.iterate();
     while (try it.next()) |entry| {
         if (entry.kind != .file) continue;
-        if (std.mem.startsWith(u8, entry.name, "auth.json.bak.")) count += 1;
+        if (std.mem.startsWith(u8, entry.name, "oauth_creds.json.bak.")) count += 1;
     }
     return count;
 }
@@ -500,7 +500,7 @@ fn countAuthBackups(dir: fs.Dir, rel_path: []const u8) !usize {
 fn legacySnapshotNameForEmail(allocator: std.mem.Allocator, email: []const u8) ![]u8 {
     const encoded = try fixtures.b64url(allocator, email);
     defer allocator.free(encoded);
-    return try std.fmt.allocPrint(allocator, "{s}.auth.json", .{encoded});
+    return try std.fmt.allocPrint(allocator, "{s}.oauth_creds.json", .{encoded});
 }
 
 fn seedRegistryWithAccounts(
@@ -610,17 +610,17 @@ fn appendCustomAccount(
     plan: registry.PlanType,
 ) !void {
     const sep = std.mem.lastIndexOf(u8, record_key, "::") orelse return error.InvalidRecordKey;
-    const chatgpt_user_id = record_key[0..sep];
-    const chatgpt_account_id = record_key[sep + 2 ..];
+    const google_user_id = record_key[0..sep];
+    const google_user_id = record_key[sep + 2 ..];
     try reg.accounts.append(allocator, .{
         .account_key = try allocator.dupe(u8, record_key),
-        .chatgpt_account_id = try allocator.dupe(u8, chatgpt_account_id),
-        .chatgpt_user_id = try allocator.dupe(u8, chatgpt_user_id),
+        .google_user_id = try allocator.dupe(u8, google_user_id),
+        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, alias),
         .account_name = null,
         .plan = plan,
-        .auth_mode = .chatgpt,
+        .plan = .chatgpt,
         .created_at = std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds(),
         .last_used_at = null,
         .last_usage = null,
@@ -646,7 +646,7 @@ test "Scenario: Given device auth login when running login then it forwards the 
     const expected_email = "device-auth@example.com";
     const fake_auth = try fixtures.authJsonWithEmailPlan(gpa, expected_email, "plus");
     defer gpa.free(fake_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "fake-auth.json", .data = fake_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "fake-oauth_creds.json", .data = fake_auth });
     try writeSuccessfulFakeGemini(tmp.dir);
 
     const fake_bin_path = try fs.path.join(gpa, &[_][]const u8{ home_root, "fake-bin" });
@@ -719,7 +719,7 @@ test "Scenario: Given GEMINI_HOME override when running login then it stores aut
     const expected_email = "override@example.com";
     const fake_auth = try fixtures.authJsonWithEmailPlan(gpa, expected_email, "plus");
     defer gpa.free(fake_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "fake-auth.json", .data = fake_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "fake-oauth_creds.json", .data = fake_auth });
     try writeSuccessfulFakeGemini(tmp.dir);
 
     const fake_bin_path = try fs.path.join(gpa, &[_][]const u8{ home_root, "fake-bin" });
@@ -770,7 +770,7 @@ test "Scenario: Given failed device auth login with existing auth json when runn
 
     const existing_auth = try fixtures.authJsonWithEmailPlan(gpa, "existing@example.com", "plus");
     defer gpa.free(existing_auth);
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = existing_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = existing_auth });
     try writeFailingFakeGemini(tmp.dir, 9);
 
     const fake_bin_path = try fs.path.join(gpa, &[_][]const u8{ home_root, "fake-bin" });
@@ -807,9 +807,9 @@ test "Scenario: Given failed device auth login with existing auth json when runn
     try std.testing.expectEqualStrings(existing_auth, active_auth);
 }
 
-// This simulates first-time use on v0.2 when ~/.gemini/auth.json already exists
+// This simulates first-time use on v0.2 when ~/.gemini/oauth_creds.json already exists
 // but ~/.gemini/accounts has not been created yet.
-test "Scenario: Given first-time use on v0.2 with an existing auth.json and no accounts directory when list runs then cli auto-imports and stays usable" {
+test "Scenario: Given first-time use on v0.2 with an existing oauth_creds.json and no accounts directory when list runs then cli auto-imports and stays usable" {
     const gpa = std.testing.allocator;
     const project_root = try projectRootAlloc(gpa);
     defer gpa.free(project_root);
@@ -830,7 +830,7 @@ test "Scenario: Given first-time use on v0.2 with an existing auth.json and no a
     const email = "fresh@example.com";
     const auth_json = try fixtures.authJsonWithEmailPlan(gpa, email, "plus");
     defer gpa.free(auth_json);
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = auth_json });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = auth_json });
 
     const result = try runCliWithIsolatedHomeAndPath(gpa, project_root, home_root, path_override, &[_][]const u8{"list"});
     defer gpa.free(result.stdout);
@@ -887,7 +887,7 @@ test "Scenario: Given upgrade from v0.1.x to v0.2 with legacy accounts data when
     const auth_json = try fixtures.authJsonWithEmailPlan(gpa, email, "team");
     defer gpa.free(auth_json);
 
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = auth_json });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = auth_json });
 
     const legacy_name = try legacySnapshotNameForEmail(gpa, email);
     defer gpa.free(legacy_name);
@@ -906,7 +906,7 @@ test "Scenario: Given upgrade from v0.1.x to v0.2 with legacy accounts data when
         \\      "email": "legacy@example.com",
         \\      "alias": "legacy",
         \\      "plan": "team",
-        \\      "auth_mode": "chatgpt",
+        \\      "plan": "chatgpt",
         \\      "created_at": 1,
         \\      "last_used_at": 2,
         \\      "last_usage_at": 3
@@ -1055,7 +1055,7 @@ test "Scenario: Given purge with no recoverable active auth when running import 
     try fs.cwd().writeFile(.{ .sub_path = alpha_snapshot_path, .data = alpha_auth });
 
     const stale_auth = "{\"broken\":true}";
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = stale_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = stale_auth });
 
     const result = try runCliWithIsolatedHome(gpa, project_root, home_root, &[_][]const u8{ "import", "--purge" });
     defer gpa.free(result.stdout);
@@ -1081,7 +1081,7 @@ test "Scenario: Given purge with no recoverable active auth when running import 
     var it = accounts.iterate();
     while (try it.next()) |entry| {
         if (entry.kind != .file) continue;
-        if (!std.mem.startsWith(u8, entry.name, "auth.json.bak.")) continue;
+        if (!std.mem.startsWith(u8, entry.name, "oauth_creds.json.bak.")) continue;
         backup_name = try gpa.dupe(u8, entry.name);
         break;
     }
@@ -1460,7 +1460,7 @@ test "Scenario: Given switch query with a direct local match when running switch
     const backup_auth = try fixtures.authJsonWithEmailPlan(gpa, "backup@example.com", "plus");
     defer gpa.free(backup_auth);
 
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = active_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = active_auth });
     try fs.cwd().writeFile(.{ .sub_path = active_snapshot_path, .data = active_auth });
     try fs.cwd().writeFile(.{ .sub_path = backup_snapshot_path, .data = backup_auth });
 
@@ -1529,7 +1529,7 @@ test "Scenario: Given switch query with multiple matches when running switch the
     const beta_auth = try fixtures.authJsonWithEmailPlan(gpa, "beta@example.com", "plus");
     defer gpa.free(beta_auth);
 
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = alpha_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = alpha_auth });
     try fs.cwd().writeFile(.{ .sub_path = alpha_snapshot_path, .data = alpha_auth });
     try fs.cwd().writeFile(.{ .sub_path = beta_snapshot_path, .data = beta_auth });
 
@@ -1833,7 +1833,7 @@ test "Scenario: Given switch with skip-api when running interactively then it do
     const backup_auth = try fixtures.authJsonWithEmailPlan(gpa, "backup@example.com", "plus");
     defer gpa.free(backup_auth);
 
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = active_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = active_auth });
     try fs.cwd().writeFile(.{ .sub_path = active_snapshot_path, .data = active_auth });
     try fs.cwd().writeFile(.{ .sub_path = backup_snapshot_path, .data = backup_auth });
 
@@ -1903,9 +1903,9 @@ test "Scenario: Given remove query with one match when running remove then it de
 
     try fs.cwd().writeFile(.{ .sub_path = removed_snapshot_path, .data = removed_auth });
     try fs.cwd().writeFile(.{ .sub_path = keeper_snapshot_path, .data = keeper_auth });
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/accounts/auth.json.bak.20260320-010101", .data = removed_auth });
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/accounts/auth.json.bak.20260320-020202", .data = removed_auth });
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/accounts/auth.json.bak.20260320-030303", .data = keeper_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/accounts/oauth_creds.json.bak.20260320-010101", .data = removed_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/accounts/oauth_creds.json.bak.20260320-020202", .data = removed_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/accounts/oauth_creds.json.bak.20260320-030303", .data = keeper_auth });
 
     const result = try runCliWithIsolatedHomeAndStdin(gpa, project_root, home_root, &[_][]const u8{ "remove", "09" }, "");
     defer gpa.free(result.stdout);
@@ -1925,9 +1925,9 @@ test "Scenario: Given remove query with one match when running remove then it de
     try std.testing.expectError(error.FileNotFound, fs.cwd().openFile(removed_snapshot_path, .{}));
     var keeper_snapshot = try fs.cwd().openFile(keeper_snapshot_path, .{});
     keeper_snapshot.close();
-    try std.testing.expectError(error.FileNotFound, tmp.dir.openFile(".gemini/accounts/auth.json.bak.20260320-010101", .{}));
-    try std.testing.expectError(error.FileNotFound, tmp.dir.openFile(".gemini/accounts/auth.json.bak.20260320-020202", .{}));
-    var keeper_backup = try tmp.dir.openFile(".gemini/accounts/auth.json.bak.20260320-030303", .{});
+    try std.testing.expectError(error.FileNotFound, tmp.dir.openFile(".gemini/accounts/oauth_creds.json.bak.20260320-010101", .{}));
+    try std.testing.expectError(error.FileNotFound, tmp.dir.openFile(".gemini/accounts/oauth_creds.json.bak.20260320-020202", .{}));
+    var keeper_backup = try tmp.dir.openFile(".gemini/accounts/oauth_creds.json.bak.20260320-030303", .{});
     keeper_backup.close();
 }
 
@@ -2281,7 +2281,7 @@ test "Scenario: Given active account removal with a replacement when running rem
     defer gpa.free(active_auth);
     const backup_auth = try fixtures.authJsonWithEmailPlan(gpa, "backup@example.com", "plus");
     defer gpa.free(backup_auth);
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = active_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = active_auth });
     try fs.cwd().writeFile(.{ .sub_path = active_snapshot_path, .data = active_auth });
     try fs.cwd().writeFile(.{ .sub_path = backup_snapshot_path, .data = backup_auth });
 
@@ -2457,7 +2457,7 @@ test "Scenario: Given auth json already points at another registry account when 
     defer gpa.free(alpha_auth);
     const beta_auth = try fixtures.authJsonWithEmailPlan(gpa, "beta@example.com", "plus");
     defer gpa.free(beta_auth);
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = beta_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = beta_auth });
     try fs.cwd().writeFile(.{ .sub_path = alpha_snapshot_path, .data = alpha_auth });
     try fs.cwd().writeFile(.{ .sub_path = beta_snapshot_path, .data = beta_auth });
 
@@ -2743,7 +2743,7 @@ test "Scenario: Given remove query deletes the final active account when running
 
     const solo_auth = try fixtures.authJsonWithEmailPlan(gpa, "solo@example.com", "pro");
     defer gpa.free(solo_auth);
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = solo_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = solo_auth });
     try fs.cwd().writeFile(.{ .sub_path = snapshot_path, .data = solo_auth });
 
     const result = try runCliWithIsolatedHomeAndStdin(gpa, project_root, home_root, &[_][]const u8{ "remove", "solo" }, "");
@@ -2817,7 +2817,7 @@ test "Scenario: Given remove all when running remove then it clears all accounts
     defer gpa.free(active_auth_path);
     const active_auth = try fixtures.authJsonWithEmailPlan(gpa, "alpha@example.com", "pro");
     defer gpa.free(active_auth);
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = active_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = active_auth });
 
     const result = try runCliWithIsolatedHomeAndStdin(gpa, project_root, home_root, &[_][]const u8{ "remove", "--all" }, "");
     defer gpa.free(result.stdout);
@@ -2855,7 +2855,7 @@ test "Scenario: Given remove all with malformed auth json when running remove th
     defer gpa.free(gemini_home);
     const active_auth_path = try authJsonPathAlloc(gpa, home_root);
     defer gpa.free(active_auth_path);
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = "{\"broken\":true}" });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = "{\"broken\":true}" });
 
     const result = try runCliWithIsolatedHomeAndStdin(gpa, project_root, home_root, &[_][]const u8{ "remove", "--all" }, "");
     defer gpa.free(result.stdout);
@@ -2863,7 +2863,7 @@ test "Scenario: Given remove all with malformed auth json when running remove th
 
     try expectSuccess(result);
     try std.testing.expect(std.mem.indexOf(u8, result.stdout, "Removed 2 account(s): ") != null);
-    try std.testing.expectEqualStrings("warning: auth.json missing email; skipping sync\n", result.stderr);
+    try std.testing.expectEqualStrings("warning: oauth_creds.json missing email; skipping sync\n", result.stderr);
 
     var loaded = try registry.loadRegistry(gpa, gemini_home);
     defer loaded.deinit(gpa);
@@ -2898,7 +2898,7 @@ test "Scenario: Given remove all with tracked auth json and no active key when r
     defer gpa.free(active_auth_path);
     const alpha_auth = try fixtures.authJsonWithEmailPlan(gpa, "alpha@example.com", "pro");
     defer gpa.free(alpha_auth);
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = alpha_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = alpha_auth });
 
     var reg = try registry.loadRegistry(gpa, gemini_home);
     defer reg.deinit(gpa);
@@ -2947,7 +2947,7 @@ test "Scenario: Given remove all with tracked auth json and stale active key whe
     defer gpa.free(active_auth_path);
     const alpha_auth = try fixtures.authJsonWithEmailPlan(gpa, "alpha@example.com", "pro");
     defer gpa.free(alpha_auth);
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = alpha_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = alpha_auth });
 
     var reg = try registry.loadRegistry(gpa, gemini_home);
     defer reg.deinit(gpa);
@@ -3008,7 +3008,7 @@ test "Scenario: Given unsynced active auth when removing the active registry acc
     defer gpa.free(active_auth);
     const backup_auth = try fixtures.authJsonWithEmailPlan(gpa, "backup@example.com", "plus");
     defer gpa.free(backup_auth);
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = "{\"broken\":true}" });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = "{\"broken\":true}" });
     try fs.cwd().writeFile(.{ .sub_path = active_snapshot_path, .data = active_auth });
     try fs.cwd().writeFile(.{ .sub_path = backup_snapshot_path, .data = backup_auth });
 
@@ -3018,7 +3018,7 @@ test "Scenario: Given unsynced active auth when removing the active registry acc
 
     try expectSuccess(result);
     try std.testing.expectEqualStrings("Removed 1 account(s): active@example.com\n", result.stdout);
-    try std.testing.expectEqualStrings("warning: auth.json missing email; skipping sync\n", result.stderr);
+    try std.testing.expectEqualStrings("warning: oauth_creds.json missing email; skipping sync\n", result.stderr);
 
     const auth_after = try fixtures.readFileAlloc(gpa, active_auth_path);
     defer gpa.free(auth_after);
@@ -3068,7 +3068,7 @@ test "Scenario: Given parseable auth without email for the active account when r
     defer gpa.free(active_auth);
     const backup_auth = try fixtures.authJsonWithEmailPlan(gpa, "backup@example.com", "plus");
     defer gpa.free(backup_auth);
-    try tmp.dir.writeFile(.{ .sub_path = ".gemini/auth.json", .data = missing_email_auth });
+    try tmp.dir.writeFile(.{ .sub_path = ".gemini/oauth_creds.json", .data = missing_email_auth });
     try fs.cwd().writeFile(.{ .sub_path = active_snapshot_path, .data = active_auth });
     try fs.cwd().writeFile(.{ .sub_path = backup_snapshot_path, .data = backup_auth });
 
@@ -3078,7 +3078,7 @@ test "Scenario: Given parseable auth without email for the active account when r
 
     try expectSuccess(result);
     try std.testing.expectEqualStrings("Removed 1 account(s): active@example.com\n", result.stdout);
-    try std.testing.expectEqualStrings("warning: auth.json missing email; skipping sync\n", result.stderr);
+    try std.testing.expectEqualStrings("warning: oauth_creds.json missing email; skipping sync\n", result.stderr);
 
     const auth_after = try fixtures.readFileAlloc(gpa, active_auth_path);
     defer gpa.free(auth_after);

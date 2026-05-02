@@ -9,8 +9,8 @@ const registry = @import("gemini_auth").registry;
 const usage_api = @import("gemini_auth").api.usage;
 const fixtures = @import("support/fixtures.zig");
 
-const shared_user_id = "user-ESYgcy2QkOGZc0NoxSlFCeVT";
-const primary_account_id = "67fe2bbb-0de6-49a4-b2b3-d1df366d1faf";
+const shared_user_id = "google_user_123";
+const primary_account_id = "account_123";
 const secondary_account_id = "518a44d9-ba75-4bad-87e5-ae9377042960";
 const tertiary_account_id = "a4021fa5-998b-4774-989f-784fa69c367b";
 const primary_record_key = shared_user_id ++ "::" ++ primary_account_id;
@@ -52,17 +52,17 @@ fn appendAccount(
     plan: registry.PlanType,
 ) !void {
     const sep = std.mem.lastIndexOf(u8, record_key, "::") orelse return error.InvalidRecordKey;
-    const chatgpt_user_id = record_key[0..sep];
-    const chatgpt_account_id = record_key[sep + 2 ..];
+    const google_user_id = record_key[0..sep];
+    const google_user_id = record_key[sep + 2 ..];
     try reg.accounts.append(allocator, .{
         .account_key = try allocator.dupe(u8, record_key),
-        .chatgpt_account_id = try allocator.dupe(u8, chatgpt_account_id),
-        .chatgpt_user_id = try allocator.dupe(u8, chatgpt_user_id),
+        .google_user_id = try allocator.dupe(u8, google_user_id),
+        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, alias),
         .account_name = null,
         .plan = plan,
-        .auth_mode = .chatgpt,
+        .plan = .chatgpt,
         .created_at = 1,
         .last_used_at = null,
         .last_usage = null,
@@ -85,14 +85,14 @@ fn authJsonWithIds(
     allocator: std.mem.Allocator,
     email: []const u8,
     plan: []const u8,
-    chatgpt_user_id: []const u8,
-    chatgpt_account_id: []const u8,
+    google_user_id: []const u8,
+    google_user_id: []const u8,
 ) ![]u8 {
     const header = "{\"alg\":\"none\",\"typ\":\"JWT\"}";
     const payload = try std.fmt.allocPrint(
         allocator,
-        "{{\"email\":\"{s}\",\"https://api.openai.com/auth\":{{\"chatgpt_account_id\":\"{s}\",\"chatgpt_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
-        .{ email, chatgpt_account_id, chatgpt_user_id, chatgpt_user_id, plan },
+        "{{\"email\":\"{s}\",\"https://www.googleapis.com/auth\":{{\"google_user_id\":\"{s}\",\"google_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
+        .{ email, google_user_id, google_user_id, google_user_id, plan },
     );
     defer allocator.free(payload);
 
@@ -106,7 +106,7 @@ fn authJsonWithIds(
     return try std.fmt.allocPrint(
         allocator,
         "{{\"tokens\":{{\"access_token\":\"access-{s}\",\"account_id\":\"{s}\",\"id_token\":\"{s}\"}}}}",
-        .{ email, chatgpt_account_id, jwt },
+        .{ email, google_user_id, jwt },
     );
 }
 
@@ -114,16 +114,16 @@ fn authJsonWithIdsAndLastRefresh(
     allocator: std.mem.Allocator,
     email: []const u8,
     plan: []const u8,
-    chatgpt_user_id: []const u8,
-    chatgpt_account_id: []const u8,
+    google_user_id: []const u8,
+    google_user_id: []const u8,
     access_token: []const u8,
     last_refresh: []const u8,
 ) ![]u8 {
     const header = "{\"alg\":\"none\",\"typ\":\"JWT\"}";
     const payload = try std.fmt.allocPrint(
         allocator,
-        "{{\"email\":\"{s}\",\"https://api.openai.com/auth\":{{\"chatgpt_account_id\":\"{s}\",\"chatgpt_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
-        .{ email, chatgpt_account_id, chatgpt_user_id, chatgpt_user_id, plan },
+        "{{\"email\":\"{s}\",\"https://www.googleapis.com/auth\":{{\"google_user_id\":\"{s}\",\"google_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
+        .{ email, google_user_id, google_user_id, google_user_id, plan },
     );
     defer allocator.free(payload);
 
@@ -137,7 +137,7 @@ fn authJsonWithIdsAndLastRefresh(
     return try std.fmt.allocPrint(
         allocator,
         "{{\"tokens\":{{\"access_token\":\"{s}\",\"account_id\":\"{s}\",\"id_token\":\"{s}\"}},\"last_refresh\":\"{s}\"}}",
-        .{ access_token, chatgpt_account_id, jwt, last_refresh },
+        .{ access_token, google_user_id, jwt, last_refresh },
     );
 }
 
@@ -145,10 +145,10 @@ fn parseAuthInfoWithIds(
     allocator: std.mem.Allocator,
     email: []const u8,
     plan: []const u8,
-    chatgpt_user_id: []const u8,
-    chatgpt_account_id: []const u8,
+    google_user_id: []const u8,
+    google_user_id: []const u8,
 ) !auth_mod.AuthInfo {
-    const auth_json = try authJsonWithIds(allocator, email, plan, chatgpt_user_id, chatgpt_account_id);
+    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id, google_user_id);
     defer allocator.free(auth_json);
     return try auth_mod.parseAuthInfoData(allocator, auth_json);
 }
@@ -158,13 +158,13 @@ fn writeActiveAuthWithIds(
     gemini_home: []const u8,
     email: []const u8,
     plan: []const u8,
-    chatgpt_user_id: []const u8,
-    chatgpt_account_id: []const u8,
+    google_user_id: []const u8,
+    google_user_id: []const u8,
 ) !void {
     const auth_path = try registry.activeAuthPath(allocator, gemini_home);
     defer allocator.free(auth_path);
 
-    const auth_json = try authJsonWithIds(allocator, email, plan, chatgpt_user_id, chatgpt_account_id);
+    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id, google_user_id);
     defer allocator.free(auth_json);
     try fs.cwd().writeFile(.{ .sub_path = auth_path, .data = auth_json });
 }
@@ -174,17 +174,17 @@ fn writeAccountSnapshotWithIds(
     gemini_home: []const u8,
     email: []const u8,
     plan: []const u8,
-    chatgpt_user_id: []const u8,
-    chatgpt_account_id: []const u8,
+    google_user_id: []const u8,
+    google_user_id: []const u8,
 ) !void {
-    const account_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ chatgpt_user_id, chatgpt_account_id });
+    const account_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ google_user_id, google_user_id });
     defer allocator.free(account_key);
 
     try registry.ensureAccountsDir(allocator, gemini_home);
     const auth_path = try registry.accountAuthPath(allocator, gemini_home, account_key);
     defer allocator.free(auth_path);
 
-    const auth_json = try authJsonWithIds(allocator, email, plan, chatgpt_user_id, chatgpt_account_id);
+    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id, google_user_id);
     defer allocator.free(auth_json);
     try fs.cwd().writeFile(.{ .sub_path = auth_path, .data = auth_json });
 }
@@ -194,12 +194,12 @@ fn writeAccountSnapshotWithIdsAndLastRefresh(
     gemini_home: []const u8,
     email: []const u8,
     plan: []const u8,
-    chatgpt_user_id: []const u8,
-    chatgpt_account_id: []const u8,
+    google_user_id: []const u8,
+    google_user_id: []const u8,
     access_token: []const u8,
     last_refresh: []const u8,
 ) !void {
-    const account_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ chatgpt_user_id, chatgpt_account_id });
+    const account_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ google_user_id, google_user_id });
     defer allocator.free(account_key);
 
     try registry.ensureAccountsDir(allocator, gemini_home);
@@ -210,8 +210,8 @@ fn writeAccountSnapshotWithIdsAndLastRefresh(
         allocator,
         email,
         plan,
-        chatgpt_user_id,
-        chatgpt_account_id,
+        google_user_id,
+        google_user_id,
         access_token,
         last_refresh,
     );
@@ -285,7 +285,7 @@ test "Scenario: Given alias, email, and account name queries when finding matchi
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-A1B2C3D4E5F6::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "user@example.com", "team-work", .team);
+    try appendAccount(gpa, &reg, "user-A1B2C3D4E5F6::account_123", "user@example.com", "team-work", .team);
     try appendAccount(gpa, &reg, "user-Z9Y8X7W6V5U4::518a44d9-ba75-4bad-87e5-ae9377042960", "other@example.com", "", .plus);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Ops Workspace");
 
@@ -310,7 +310,7 @@ test "Scenario: Given account_id query when finding matching accounts then it is
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-A1B2C3D4E5F6::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "user@example.com", "work", .team);
+    try appendAccount(gpa, &reg, "user-A1B2C3D4E5F6::account_123", "user@example.com", "work", .team);
 
     var matches = try main_mod.findMatchingAccounts(gpa, &reg, "67fe2bbb");
     defer matches.deinit(gpa);
@@ -423,7 +423,7 @@ test "Scenario: Given api usage refresh for list and switch when refreshing fore
             var info = try auth_mod.parseAuthInfo(allocator, auth_path);
             defer info.deinit(allocator);
 
-            const account_id = info.chatgpt_account_id orelse return .{
+            const account_id = info.google_user_id orelse return .{
                 .snapshot = null,
                 .status_code = null,
                 .missing_auth = true,
@@ -636,7 +636,7 @@ test "Scenario: Given thread pool init failure when refreshing foreground usage 
             var info = try auth_mod.parseAuthInfo(allocator, auth_path);
             defer info.deinit(allocator);
 
-            const account_id = info.chatgpt_account_id orelse return .{
+            const account_id = info.google_user_id orelse return .{
                 .snapshot = null,
                 .status_code = null,
                 .missing_auth = true,
@@ -1199,7 +1199,7 @@ test "Scenario: Given removed active account with remaining accounts when reconc
 
     const stale_auth = try fixtures.authJsonWithEmailPlan(gpa, "removed@example.com", "pro");
     defer gpa.free(stale_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "auth.json", .data = stale_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "oauth_creds.json", .data = stale_auth });
 
     try main_mod.reconcileActiveAuthAfterRemove(gpa, gemini_home, &reg, true);
 
@@ -1254,7 +1254,7 @@ test "Scenario: Given stale active key with remaining accounts when reconciling 
 
     const stale_auth = try fixtures.authJsonWithEmailPlan(gpa, "removed@example.com", "pro");
     defer gpa.free(stale_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "auth.json", .data = stale_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "oauth_creds.json", .data = stale_auth });
 
     try main_mod.reconcileActiveAuthAfterRemove(gpa, gemini_home, &reg, true);
 
@@ -1283,7 +1283,7 @@ test "Scenario: Given no remaining accounts when reconciling after remove then a
 
     const stale_auth = try fixtures.authJsonWithEmailPlan(gpa, "removed@example.com", "pro");
     defer gpa.free(stale_auth);
-    try tmp.dir.writeFile(.{ .sub_path = "auth.json", .data = stale_auth });
+    try tmp.dir.writeFile(.{ .sub_path = "oauth_creds.json", .data = stale_auth });
 
     try main_mod.reconcileActiveAuthAfterRemove(gpa, gemini_home, &reg, true);
 

@@ -27,7 +27,7 @@ const SyncBddContext = struct {
     }
 
     fn givenActiveAuthJson(self: *SyncBddContext, auth_json: []const u8) !void {
-        try self.tmp.dir.writeFile(app_runtime.io(), .{ .sub_path = "auth.json", .data = auth_json });
+        try self.tmp.dir.writeFile(app_runtime.io(), .{ .sub_path = "oauth_creds.json", .data = auth_json });
     }
 
     fn givenRegisteredAccount(self: *SyncBddContext, email: []const u8, alias: []const u8, plan: ?registry.PlanType) !void {

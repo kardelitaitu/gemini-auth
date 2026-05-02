@@ -28,17 +28,17 @@ fn appendAccount(
     plan: registry.PlanType,
 ) !void {
     const sep = std.mem.lastIndexOf(u8, record_key, "::") orelse return error.InvalidRecordKey;
-    const chatgpt_user_id = record_key[0..sep];
-    const chatgpt_account_id = record_key[sep + 2 ..];
+    const google_user_id = record_key[0..sep];
+    const google_user_id = record_key[sep + 2 ..];
     try reg.accounts.append(allocator, .{
         .account_key = try allocator.dupe(u8, record_key),
-        .chatgpt_account_id = try allocator.dupe(u8, chatgpt_account_id),
-        .chatgpt_user_id = try allocator.dupe(u8, chatgpt_user_id),
+        .google_user_id = try allocator.dupe(u8, google_user_id),
+        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, alias),
         .account_name = null,
         .plan = plan,
-        .auth_mode = .chatgpt,
+        .plan = .chatgpt,
         .created_at = 1,
         .last_used_at = null,
         .last_usage = null,
@@ -86,7 +86,7 @@ fn expectedImportMarker(outcome: registry.ImportOutcome) []const u8 {
 
 test "Scenario: Given import path and alias when parsing then import options are preserved" {
     const gpa = std.testing.allocator;
-    const args = [_][:0]const u8{ "gemini-auth", "import", "/tmp/auth.json", "--alias", "personal" };
+    const args = [_][:0]const u8{ "gemini-auth", "import", "/tmp/oauth_creds.json", "--alias", "personal" };
     var result = try cli.commands.parseArgs(gpa, &args);
     defer cli.commands.freeParseResult(gpa, &result);
 
@@ -94,7 +94,7 @@ test "Scenario: Given import path and alias when parsing then import options are
         .command => |cmd| switch (cmd) {
             .import_auth => |opts| {
                 try std.testing.expect(opts.auth_path != null);
-                try std.testing.expect(std.mem.eql(u8, opts.auth_path.?, "/tmp/auth.json"));
+                try std.testing.expect(std.mem.eql(u8, opts.auth_path.?, "/tmp/oauth_creds.json"));
                 try std.testing.expect(opts.alias != null);
                 try std.testing.expect(std.mem.eql(u8, opts.alias.?, "personal"));
                 try std.testing.expect(!opts.purge);
@@ -155,7 +155,7 @@ test "Scenario: Given import cpa with purge when parsing then usage error is ret
 
 test "Scenario: Given import unknown short purge flag when parsing then usage error is returned" {
     const gpa = std.testing.allocator;
-    const args = [_][:0]const u8{ "gemini-auth", "import", "-P", "/tmp/auth.json" };
+    const args = [_][:0]const u8{ "gemini-auth", "import", "-P", "/tmp/oauth_creds.json" };
     var result = try cli.commands.parseArgs(gpa, &args);
     defer cli.commands.freeParseResult(gpa, &result);
 
@@ -367,7 +367,7 @@ test "Scenario: Given complex command help when rendering then examples are show
     try std.testing.expect(std.mem.indexOf(u8, help, "Options:\n  <path>") != null);
     try std.testing.expect(std.mem.indexOf(u8, help, "Uses `~/.cli-proxy-api` when omitted.") != null);
     try std.testing.expect(std.mem.indexOf(u8, help, "--purge [<path>] Rebuild `registry.json` from auth files.") != null);
-    try std.testing.expect(std.mem.indexOf(u8, help, "Examples:\n  gemini-auth import /path/to/auth.json --alias personal\n") != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, "Examples:\n  gemini-auth import /path/to/oauth_creds.json --alias personal\n") != null);
 }
 
 test "Scenario: Given switch command help when rendering then target forms and multi-match behavior are shown" {
@@ -1195,7 +1195,7 @@ test "Scenario: Given singleton aliases from different emails when building remo
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-4QmYj7PkN2sLx8AcVbR3TwHd::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "alpha@example.com", "work", .team);
+    try appendAccount(gpa, &reg, "user-4QmYj7PkN2sLx8AcVbR3TwHd::account_123", "alpha@example.com", "work", .team);
     try appendAccount(gpa, &reg, "user-8LnCq5VzR1mHx9SfKpT4JdWe::518a44d9-ba75-4bad-87e5-ae9377042960", "beta@example.com", "work", .team);
 
     const indices = [_]usize{ 0, 1 };
@@ -1215,7 +1215,7 @@ test "Scenario: Given singleton account names from different emails when buildin
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-4QmYj7PkN2sLx8AcVbR3TwHd::67fe2bbb-0de6-49a4-b2b3-d1df366d1faf", "alpha@example.com", "", .team);
+    try appendAccount(gpa, &reg, "user-4QmYj7PkN2sLx8AcVbR3TwHd::account_123", "alpha@example.com", "", .team);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Workspace");
     try appendAccount(gpa, &reg, "user-8LnCq5VzR1mHx9SfKpT4JdWe::518a44d9-ba75-4bad-87e5-ae9377042960", "beta@example.com", "", .team);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Workspace");
