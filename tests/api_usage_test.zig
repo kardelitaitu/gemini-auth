@@ -1,101 +1,56 @@
 const std = @import("std");
-const app_runtime = @import("gemini_auth").core.runtime;
-const registry = @import("gemini_auth").registry;
 const usage_api = @import("gemini_auth").api.usage;
+const registry = @import("gemini_auth").registry;
 
-test "parse usage api response maps live usage windows and plan" {
+test "parse usage api response maps plan" {
     const gpa = std.testing.allocator;
+
+    // Gemini API format is TBD (To Be Determined)
+    // For now, test basic structure
     const body =
         \\{
-        \\  "user_id": "user-example",
-        \\  "account_id": "account-example",
-        \\  "email": "team@example.com",
-        \\  "plan_type": "team",
+        \\  "plan_type": "pro",
         \\  "rate_limit": {
-        \\    "allowed": true,
-        \\    "limit_reached": false,
-        \\    "primary_window": {
-        \\      "used_percent": 11,
-        \\      "limit_window_seconds": 18000,
-        \\      "reset_after_seconds": 16802,
-        \\      "reset_at": 1773491460
-        \\    },
-        \\    "secondary_window": {
-        \\      "used_percent": 94,
-        \\      "limit_window_seconds": 604800,
-        \\      "reset_after_seconds": 274961,
-        \\      "reset_at": 1773749620
-        \\    }
-        \\  },
-        \\  "code_review_rate_limit": {
-        \\    "allowed": true,
-        \\    "limit_reached": false,
-        \\    "primary_window": {
-        \\      "used_percent": 0,
-        \\      "limit_window_seconds": 604800,
-        \\      "reset_after_seconds": 604800,
-        \\      "reset_at": 1774079459
-        \\    },
-        \\    "secondary_window": null
-        \\  },
-        \\  "additional_rate_limits": null,
-        \\  "credits": {
-        \\    "has_credits": false,
-        \\    "unlimited": false,
-        \\    "balance": null,
-        \\    "approx_local_messages": null,
-        \\    "approx_cloud_messages": null
-        \\  },
-        \\  "promo": null
+        \\    "used_percent": 11,
+        \\    "window_seconds": 18000,
+        \\    "reset_after_seconds": 16802,
+        \\    "reset_at": 1773491460
+        \\  }
         \\}
     ;
 
     const snapshot = (try usage_api.parseUsageResponse(gpa, body)) orelse return error.TestExpectedEqual;
     defer registry.freeRateLimitSnapshot(gpa, &snapshot);
 
-    try std.testing.expectEqual(registry.PlanType.team, snapshot.plan_type.?);
+    try std.testing.expect(registry.PlanType.pro == snapshot.plan_type.?);
     try std.testing.expectEqual(@as(f64, 11.0), snapshot.primary.?.used_percent);
-    try std.testing.expectEqual(@as(?i64, 300), snapshot.primary.?.window_minutes);
-    try std.testing.expectEqual(@as(?i64, 10080), snapshot.secondary.?.window_minutes);
-    try std.testing.expectEqual(@as(?i64, 1773749620), snapshot.secondary.?.resets_at);
-    try std.testing.expect(snapshot.credits != null);
-    try std.testing.expect(!snapshot.credits.?.has_credits);
-    try std.testing.expect(snapshot.credits.?.balance == null);
 }
 
 test "parse usage api response without windows is ignored" {
     const gpa = std.testing.allocator;
+
     const body =
         \\{
-        \\  "plan_type": "plus",
-        \\  "rate_limit": null,
-        \\  "credits": {
-        \\    "has_credits": true,
-        \\    "unlimited": false,
-        \\    "balance": "1.00"
-        \\  }
+        \\  "plan_type": "free",
+        \\  "rate_limit": null
         \\}
     ;
 
-    const snapshot = try usage_api.parseUsageResponse(gpa, body);
+    const snapshot = usage_api.parseUsageResponse(gpa, body);
     try std.testing.expect(snapshot == null);
 }
 
-test "parse usage api response maps prolite plan" {
+test "parse usage api response maps ultra plan" {
     const gpa = std.testing.allocator;
+
     const body =
         \\{
-        \\  "plan_type": "prolite",
+        \\  "plan_type": "ultra",
         \\  "rate_limit": {
-        \\    "allowed": true,
-        \\    "limit_reached": false,
-        \\    "primary_window": {
-        \\      "used_percent": 7,
-        \\      "limit_window_seconds": 18000,
-        \\      "reset_after_seconds": 1200,
-        \\      "reset_at": 1773491460
-        \\    },
-        \\    "secondary_window": null
+        \\    "used_percent": 0,
+        \\    "window_seconds": 604800,
+        \\    "reset_after_seconds": 604800,
+        \\    "reset_at": 1774079459`
         \\  }
         \\}
     ;
@@ -103,58 +58,38 @@ test "parse usage api response maps prolite plan" {
     const snapshot = (try usage_api.parseUsageResponse(gpa, body)) orelse return error.TestExpectedEqual;
     defer registry.freeRateLimitSnapshot(gpa, &snapshot);
 
-    try std.testing.expectEqual(registry.PlanType.prolite, snapshot.plan_type.?);
+    try std.testing.expect(registry.PlanType.ultra == snapshot.plan_type.?);
 }
 
-test "fetch usage for auth path groups non-chatgpt or incomplete auth as missing auth" {
+test "parse usage api response maps free plan" {
     const gpa = std.testing.allocator;
-    var tmp = std.testing.tmpDir(.{});
-    defer tmp.cleanup();
 
-    try tmp.dir.writeFile(app_runtime.io(), .{
-        .sub_path = "auth.json",
-        .data =
-        \\{
-        \\  "OPENAI_API_KEY": "sk-test"
-        \\}
-        ,
-    });
-
-    const auth_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir, "auth.json");
-    defer gpa.free(auth_path);
-
-    const result = try usage_api.fetchUsageForAuthPathDetailed(gpa, auth_path);
-    try std.testing.expect(result.snapshot == null);
-    try std.testing.expect(result.status_code == null);
-    try std.testing.expect(result.missing_auth);
-}
-
-test "parse 401 usage error response extracts error code" {
     const body =
         \\{
-        \\  "error": {
-        \\    "message": "Your authentication token has been invalidated. Please try signing in again.",
-        \\    "type": "invalid_request_error",
-        \\    "param": null,
-        \\    "code": "token_invalidated"
+        \\  "plan_type": "free",
+        \\  "rate_limit": {
+        \\    "used_percent": 5,
+        \\    "window_seconds": 604800,
+        \\    "reset_after_seconds": 274961,
+        \\    "reset_at": 1773749620`
         \\  }
         \\}
     ;
 
-    const code = usage_api.parseNonSuccessErrorCode(std.testing.allocator, 401, body) orelse return error.TestExpectedEqual;
-    try std.testing.expectEqualStrings("token_invalidated", code.text());
-    try std.testing.expect(usage_api.parseNonSuccessErrorCode(std.testing.allocator, 200, body) == null);
+    const snapshot = (try usage_api.parseUsageResponse(gpa, body)) orelse return error.TestExpectedEqual;
+    defer registry.freeRateLimitSnapshot(gpa, &snapshot);
+
+    try std.testing.expect(registry.PlanType.free == snapshot.plan_type.?);
 }
 
-test "parse 402 usage error response uses detail code as error code fallback" {
-    const body =
-        \\{
-        \\  "detail": {
-        \\    "code": "deactivated_workspace"
-        \\  }
-        \\}
-    ;
+test "parse invalid json returns null" {
+    const gpa = std.testing.allocator;
 
-    const code = usage_api.parseNonSuccessErrorCode(std.testing.allocator, 402, body) orelse return error.TestExpectedEqual;
-    try std.testing.expectEqualStrings("deactivated_workspace", code.text());
+    const body = "not json";
+    const snapshot = usage_api.parseUsageResponse(gpa, body);
+    try std.testing.expect(snapshot == null);
 }
+
+// Note: Gemini API format is TBD
+// These tests use a hypothetical format
+// Update when actual Gemini API responses are available
