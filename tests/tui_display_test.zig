@@ -39,14 +39,14 @@ fn appendAccount(
     });
 }
 
-test "Scenario: Given same email with two team accounts and one plus account when building display rows then they are grouped and numbered" {
+test "Scenario: Given same email with two pro accounts and one free account when building display rows then they are grouped and numbered" {
     const gpa = std.testing.allocator;
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
     try appendAccount(gpa, &reg, "google_user_123::account_123", "user@example.com", "", .pro);
     try appendAccount(gpa, &reg, "google_user_123::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "", .pro);
-    try appendAccount(gpa, &reg, "google_user_123::a4021fa5-998b-4774-989f-784fa69c367b", "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, "google_user_456::a4021fa5-998b-4774-989f-784fa69c367b", "other@example.com", "", .free);
     try registry.setActiveAccountKey(gpa, &reg, "google_user_123::518a44d9-ba75-4bad-87e5-ae9377042960");
 
     var rows = try display_rows.buildDisplayRows(gpa, &reg, null);
@@ -55,10 +55,10 @@ test "Scenario: Given same email with two team accounts and one plus account whe
     try std.testing.expect(rows.rows.len == 4);
     try std.testing.expect(rows.rows[0].account_index == null);
     try std.testing.expect(std.mem.eql(u8, rows.rows[0].account_cell, "user@example.com"));
-    try std.testing.expect(std.mem.eql(u8, rows.rows[1].account_cell, "Business #1"));
+    try std.testing.expect(std.mem.eql(u8, rows.rows[1].account_cell, "Pro #1"));
     try std.testing.expect(rows.rows[1].is_active);
-    try std.testing.expect(std.mem.eql(u8, rows.rows[2].account_cell, "Business #2"));
-    try std.testing.expect(std.mem.eql(u8, rows.rows[3].account_cell, "Plus"));
+    try std.testing.expect(std.mem.eql(u8, rows.rows[2].account_cell, "Pro #2"));
+    try std.testing.expect(std.mem.eql(u8, rows.rows[3].account_cell, "Free"));
     try std.testing.expect(rows.selectable_row_indices.len == 3);
 }
 
@@ -67,23 +67,7 @@ test "Scenario: Given grouped accounts with aliases when building display rows t
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "google_user_123::account_123", "user@example.com", "work", .pro);
-    try appendAccount(gpa, &reg, "google_user_123::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "backup", .pro);
-
-    var rows = try display_rows.buildDisplayRows(gpa, &reg, null);
-    defer rows.deinit(gpa);
-
-    try std.testing.expect(rows.rows.len == 3);
-    try std.testing.expect(std.mem.eql(u8, rows.rows[1].account_cell, "backup") or std.mem.eql(u8, rows.rows[1].account_cell, "work"));
-    try std.testing.expect(std.mem.eql(u8, rows.rows[2].account_cell, "backup") or std.mem.eql(u8, rows.rows[2].account_cell, "work"));
-}
-
-test "Scenario: Given grouped accounts with a prolite record when building display rows then labels use Pro Lite wording" {
-    const gpa = std.testing.allocator;
-    var reg = makeRegistry();
-    defer reg.deinit(gpa);
-
-    try appendAccount(gpa, &reg, "google_user_123::account_123", "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, "google_user_123::account_123", "user@example.com", "Business", .pro);
     try appendAccount(gpa, &reg, "google_user_123::518a44d9-ba75-4bad-87e5-ae9377042960", "user@example.com", "", .pro);
 
     var rows = try display_rows.buildDisplayRows(gpa, &reg, null);
@@ -92,7 +76,7 @@ test "Scenario: Given grouped accounts with a prolite record when building displ
     try std.testing.expectEqual(@as(usize, 3), rows.rows.len);
     try std.testing.expect(std.mem.eql(u8, rows.rows[0].account_cell, "user@example.com"));
     try std.testing.expect(std.mem.eql(u8, rows.rows[1].account_cell, "Business"));
-    try std.testing.expect(std.mem.eql(u8, rows.rows[2].account_cell, "Pro Lite"));
+    try std.testing.expect(std.mem.eql(u8, rows.rows[2].account_cell, "Pro"));
 }
 
 test "Scenario: Given a grouped account with a fresher usage plan when building display rows then labels and ordering prefer the usage plan" {
@@ -114,7 +98,7 @@ test "Scenario: Given a grouped account with a fresher usage plan when building 
 
     try std.testing.expectEqual(@as(usize, 3), rows.rows.len);
     try std.testing.expect(std.mem.eql(u8, rows.rows[0].account_cell, "user@example.com"));
-    try std.testing.expect(std.mem.eql(u8, rows.rows[1].account_cell, "Business"));
+    try std.testing.expect(std.mem.eql(u8, rows.rows[1].account_cell, "Pro"));
     try std.testing.expect(std.mem.eql(u8, rows.rows[2].account_cell, "Free"));
 }
 

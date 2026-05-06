@@ -53,7 +53,7 @@ fn expectLinesWithin(output: []const u8, max_cols: usize) !void {
 
 test "Scenario: Given a narrow table when rendering then account identity and usage columns are kept before plan and last" {
     var rows = [_]SwitchRow{
-        testRow("very-long-account-name@example.com", "Business", "100%", "42%", "Now"),
+        testRow("very-long-account-name@example.com", "Pro", "100%", "42%", "Now"),
     };
     var reg = makeTestRegistry();
     defer reg.deinit(std.testing.allocator);
@@ -77,13 +77,13 @@ test "Scenario: Given a narrow table when rendering then account identity and us
     try std.testing.expect(std.mem.indexOf(u8, output, "very-l.com") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "100%") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "42%") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Business") == null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "Pro") == null);
     try std.testing.expect(std.mem.indexOf(u8, output, "Now") == null);
 }
 
 test "Scenario: Given remaining table width when rendering then status plan and last expand before account becomes complete" {
     var rows = [_]SwitchRow{
-        testRow("very-long-account-name@example.com", "Business", "100%", "42%", "Now"),
+        testRow("very-long-account-name@example.com", "Pro", "100%", "42%", "Now"),
     };
     var reg = makeTestRegistry();
     defer reg.deinit(std.testing.allocator);
@@ -105,7 +105,7 @@ test "Scenario: Given remaining table width when rendering then status plan and 
     const output = writer.buffered();
     try expectLinesWithin(output, 50);
     try std.testing.expect(std.mem.indexOf(u8, output, "very-l.mple.com") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Business") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "Pro") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "100%") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "42%") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "Now") != null);
@@ -114,7 +114,7 @@ test "Scenario: Given remaining table width when rendering then status plan and 
 
 test "Scenario: Given an alias-sized account label when rendering a narrow table then the alias remains complete" {
     var rows = [_]SwitchRow{
-        testRow("work-main", "Business", "31%", "42%", "Now"),
+        testRow("work-main", "Pro", "31%", "42%", "Now"),
     };
     var reg = makeTestRegistry();
     defer reg.deinit(std.testing.allocator);

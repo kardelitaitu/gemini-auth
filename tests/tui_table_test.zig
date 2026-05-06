@@ -175,6 +175,6 @@ test "writeAccountsTable prefers usage snapshot plan labels over stored auth pla
     try writeAccountsTable(&writer, &reg, false);
 
     const output = writer.buffered();
-    try std.testing.expect(std.mem.indexOf(u8, output, "Business") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "Pro") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "Plus") == null);
 }

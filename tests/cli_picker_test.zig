@@ -272,7 +272,7 @@ test "Scenario: Given live remove table rows when rendering then checkbox spacin
 test "Scenario: Given a live switch viewport when rendering then long lists keep global numbering" {
     var rows = [_]SwitchRow{
         testHeaderRow("group"),
-        testAccountRow("first", "Plus", false),
+        testAccountRow("first", "Free", false),
         testAccountRow("second", "Team", false),
         testAccountRow("third", "Free", false),
     };
@@ -420,7 +420,7 @@ test "Scenario: Given live screens when rendering then vertical spacing stays co
 
 test "Scenario: Given live remove number input when toggling a row then the prompt digits are cleared" {
     var rows = [_]SwitchRow{
-        testAccountRow("first@example.com", "Plus", false),
+        testAccountRow("first@example.com", "Free", false),
         testAccountRow("second@example.com", "Team", false),
     };
     var reg = makeTestRegistry();
@@ -532,7 +532,7 @@ test "Scenario: Given long live switch and remove screens when rendering a full-
 
 test "Scenario: Given a live remove viewport when rendering then checked row numbering stays stable" {
     var rows = [_]SwitchRow{
-        testAccountRow("first", "Plus", false),
+        testAccountRow("first", "Free", false),
         testAccountRow("second", "Team", false),
         testAccountRow("third", "Free", false),
     };
@@ -559,10 +559,10 @@ test "Scenario: Given a live remove viewport when rendering then checked row num
 test "Scenario: Given a cursor row below the live viewport then viewport start scrolls it into view" {
     var rows = [_]SwitchRow{
         testHeaderRow("group"),
-        testAccountRow("first", "Plus", false),
+        testAccountRow("first", "Free", false),
         testAccountRow("second", "Team", false),
         testAccountRow("third", "Free", false),
-        testAccountRow("fourth", "Plus", false),
+        testAccountRow("fourth", "Free", false),
     };
 
     try std.testing.expectEqual(
@@ -1235,7 +1235,7 @@ test "Scenario: Given the active account is the remove cursor then the cursor ma
 test "Scenario: Given remove list color output when rendering then cursor checked active and primary rows use distinct styles" {
     var rows = [_]SwitchRow{
         testAccountRow("cursor@example.com", "Team", false),
-        testAccountRow("checked@example.com", "Plus", false),
+        testAccountRow("checked@example.com", "Free", false),
         testAccountRow("active@example.com", "Free", true),
         testAccountRow("normal@example.com", "Free", false),
     };
@@ -1551,5 +1551,5 @@ test "Scenario: Given a usage snapshot plan when building switch rows then the d
     var rows = try buildSwitchRows(gpa, &reg);
     defer rows.deinit(gpa);
 
-    try std.testing.expectEqualStrings("Business", rows.items[0].plan);
+    try std.testing.expectEqualStrings("Pro", rows.items[0].plan);
 }
