@@ -8,7 +8,14 @@ const defaultAccountFetcher = account_names.defaultAccountFetcher;
 const refreshAccountNamesAfterLogin = account_names.refreshAccountNamesAfterLogin;
 
 pub fn handleLogin(allocator: std.mem.Allocator, gemini_home: []const u8, opts: cli.types.LoginOptions) !void {
-    try cli.login.runGeminiLogin(opts);
+    cli.login.runGeminiLogin(opts) catch |err| switch (err) {
+        error.GeminiLoginNotImplemented => {
+            // Instructions provided, user needs to manually authenticate
+            return;
+        },
+        else => return err,
+    };
+
     const auth_path = try registry.activeAuthPath(allocator, gemini_home);
     defer allocator.free(auth_path);
 

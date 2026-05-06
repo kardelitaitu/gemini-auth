@@ -30,18 +30,23 @@ fn writeGeminiLoginLaunchFailureHint(err_name: []const u8) !void {
 }
 
 pub fn runGeminiLogin(opts: types.LoginOptions) !void {
-    var child = std.process.spawn(app_runtime.io(), .{
-        .argv = geminiLoginArgs(opts),
-        .stdin = .inherit,
-        .stdout = .inherit,
-        .stderr = .inherit,
-    }) catch |err| {
-        writeGeminiLoginLaunchFailureHint(@errorName(err)) catch {};
-        return err;
-    };
-    const term = child.wait(app_runtime.io()) catch |err| {
-        writeGeminiLoginLaunchFailureHint(@errorName(err)) catch {};
-        return err;
-    };
-    try ensureGeminiLoginSucceeded(term);
+    _ = opts; // Not used for Gemini OAuth instructions
+
+    var buffer: [2048]u8 = undefined;
+    var writer = std.Io.File.stderr().writer(app_runtime.io(), &buffer);
+    const out = &writer.interface;
+
+    try out.writeAll("Gemini CLI authentication requires Google OAuth2 setup.\n\n");
+    try out.writeAll("To authenticate with Gemini CLI:\n\n");
+    try out.writeAll("1. Visit: https://accounts.google.com/o/oauth2/auth?...\n");
+    try out.writeAll("2. Sign in with your Google account\n");
+    try out.writeAll("3. Grant permissions for Gemini API access\n");
+    try out.writeAll("4. Copy the authorization code\n");
+    try out.writeAll("5. Save the resulting tokens to ~/.gemini/oauth_creds.json\n\n");
+    try out.writeAll("Alternatively, run the Gemini CLI directly if installed:\n");
+    try out.writeAll("  gemini login\n\n");
+    try out.writeAll("Then use 'gemini-auth import ~/.gemini/oauth_creds.json' to import the tokens.\n");
+
+    try out.flush();
+    return error.GeminiLoginNotImplemented;
 }
