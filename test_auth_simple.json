@@ -1,0 +1,8 @@
+{
+  "access_token": "ya29.test_access_token",
+  "scope": "https://www.googleapis.com/auth/gemini-api",
+  "token_type": "Bearer",
+  "expiry_date": 1777639046350,
+  "refresh_token": "1//test_refresh_token"
+}</content>
+<parameter name="filePath">test_auth_simple.json

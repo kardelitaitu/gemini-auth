@@ -24,12 +24,11 @@ pub const AuthInfo = struct {
 };
 
 pub fn parseAuthInfo(allocator: std.mem.Allocator, auth_path: []const u8) !AuthInfo {
-    const file = try std.Io.Dir.cwd().openFile(app_runtime.io(), auth_path, .{});
-    defer file.close(app_runtime.io());
-
-    var read_buffer: [4096]u8 = undefined;
-    var file_reader = file.reader(app_runtime.io(), &read_buffer);
-    const data = try file_reader.interface.allocRemaining(allocator, .limited(10 * 1024 * 1024));
+    const abs_path = try app_runtime.realPathFileAlloc(allocator, auth_path);
+    defer allocator.free(abs_path);
+    const file = try std.fs.openFileAbsolute(abs_path, .{});
+    defer file.close();
+    const data = try file.readToEndAlloc(allocator, 10 * 1024 * 1024);
     defer allocator.free(data);
 
     return try parseAuthInfoData(allocator, data);
@@ -117,9 +116,9 @@ pub fn parseAuthInfoData(allocator: std.mem.Allocator, data: []const u8) !AuthIn
             }
 
             return AuthInfo{
-                .email = if (email) |e| blk: { email = null; break :blk try allocator.dupe(u8, e); } else null,
-                .google_user_id = if (google_user_id) |id| blk: { google_user_id = null; break :blk try allocator.dupe(u8, id); } else null,
-                .name = if (name) |n| blk: { name = null; break :blk try allocator.dupe(u8, n); } else null,
+                .email = if (email) |e| blk: { defer allocator.free(e); email = null; break :blk try allocator.dupe(u8, e); } else null,
+                .google_user_id = if (google_user_id) |id| blk: { defer allocator.free(id); google_user_id = null; break :blk try allocator.dupe(u8, id); } else null,
+                .name = if (name) |n| blk: { defer allocator.free(n); name = null; break :blk try allocator.dupe(u8, n); } else null,
                 .access_token = if (access_token) |t| try allocator.dupe(u8, t) else null,
                 .refresh_token = if (refresh_token) |t| try allocator.dupe(u8, t) else null,
                 .id_token = if (id_token) |t| try allocator.dupe(u8, t) else null,

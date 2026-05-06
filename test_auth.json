@@ -1,0 +1,9 @@
+{
+  "access_token": "ya29.test",
+  "scope": "openid",
+  "token_type": "Bearer",
+  "id_token": "header.payload.sig",
+  "expiry_date": 1640995200000,
+  "refresh_token": "1//refresh"
+}</content>
+<parameter name="filePath">test_auth.json

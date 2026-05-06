@@ -111,10 +111,69 @@ pub fn parseUsageResponse(
     allocator: std.mem.Allocator,
     body: []const u8,
 ) !?registry.RateLimitSnapshot {
-    _ = allocator;
-    _ = body;
-    // TBD: Implement when Gemini API structure is known
-    return null;
+    var parsed = try std.json.parseFromSlice(std.json.Value, allocator, body, .{});
+    defer parsed.deinit();
+    const root = parsed.value;
+
+    if (root != .object) return null;
+    const obj = root.object;
+
+    // Parse plan_type
+    const plan_type_str = if (obj.get("plan_type")) |pt| switch (pt) {
+        .string => |s| s,
+        else => return null,
+    } else null;
+
+    const plan_type = if (plan_type_str) |s| blk: {
+        if (std.mem.eql(u8, s, "free")) break :blk registry.PlanType.free;
+        if (std.mem.eql(u8, s, "pro")) break :blk registry.PlanType.pro;
+        if (std.mem.eql(u8, s, "ultra")) break :blk registry.PlanType.ultra;
+        break :blk null;
+    } else null;
+
+    // Parse rate_limit
+    const rate_limit = obj.get("rate_limit") orelse return registry.RateLimitSnapshot{
+        .primary = null,
+        .secondary = null,
+        .credits = null,
+        .plan_type = plan_type,
+    };
+
+    if (rate_limit == .null) return null;
+
+    if (rate_limit != .object) return null;
+    const rl_obj = rate_limit.object;
+
+    const used_percent = if (rl_obj.get("used_percent")) |up| switch (up) {
+        .integer => |i| @as(f64, @floatFromInt(i)),
+        .float => |f| f,
+        else => return null,
+    } else return null;
+
+    const window_seconds = if (rl_obj.get("window_seconds")) |ws| switch (ws) {
+        .integer => |i| i,
+        else => return null,
+    } else null;
+
+    const reset_at = if (rl_obj.get("reset_at")) |ra| switch (ra) {
+        .integer => |i| i,
+        else => null,
+    } else null;
+
+    const window_minutes = if (window_seconds) |ws| @divFloor(ws, 60) else null;
+
+    const primary = registry.RateLimitWindow{
+        .used_percent = used_percent,
+        .window_minutes = window_minutes,
+        .resets_at = reset_at,
+    };
+
+    return registry.RateLimitSnapshot{
+        .primary = primary,
+        .secondary = null,
+        .credits = null,
+        .plan_type = plan_type,
+    };
 }
 
 // Stub function for tests - parse error code

@@ -591,8 +591,7 @@ test "Scenario: Given foreground usage returns response error code then status o
 
 test "Scenario: Given long response error code then status override is truncated to quota display width" {
     const gpa = std.testing.allocator;
-    const code = usage_api.parseNonSuccessErrorCode(std.testing.allocator, 429);
-    ) orelse return error.TestExpectedEqual;
+    const code = (usage_api.parseNonSuccessErrorCode(std.testing.allocator, 429)) orelse return error.TestExpectedEqual;
     const text = try main_mod.formatStatusOverrideAlloc(gpa, 429, code);
     defer gpa.free(text);
 

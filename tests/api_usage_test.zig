@@ -7,17 +7,15 @@ test "parse usage api response maps plan" {
 
     // Gemini API format is TBD (To Be Determined)
     // For now, test basic structure
-    const body =
-        \\{
-        \\  "plan_type": "pro",
-        \\  "rate_limit": {
-        \\    "used_percent": 11,
-        \\    "window_seconds": 18000,
-        \\    "reset_after_seconds": 16802,
-        \\    "reset_at": 1773491460
-        \\  }
-        \\}
-    ;
+    const body = "{" ++
+        "\"plan_type\": \"pro\"," ++
+        "\"rate_limit\": {" ++
+        "\"used_percent\": 11," ++
+        "\"window_seconds\": 18000," ++
+        "\"reset_after_seconds\": 16802," ++
+        "\"reset_at\": 1773491460" ++
+        "}" ++
+    "}"; 
 
     const snapshot = (try usage_api.parseUsageResponse(gpa, body)) orelse return error.TestExpectedEqual;
     defer registry.freeRateLimitSnapshot(gpa, &snapshot);
@@ -29,12 +27,10 @@ test "parse usage api response maps plan" {
 test "parse usage api response without windows is ignored" {
     const gpa = std.testing.allocator;
 
-    const body =
-        \\{
-        \\  "plan_type": "free",
-        \\  "rate_limit": null
-        \\}
-    ;
+    const body = "{" ++
+        "\"plan_type\": \"free\"," ++
+        "\"rate_limit\": null" ++
+    "}"; 
 
     const snapshot = try usage_api.parseUsageResponse(gpa, body);
     try std.testing.expect(snapshot == null);
@@ -43,17 +39,15 @@ test "parse usage api response without windows is ignored" {
 test "parse usage api response maps ultra plan" {
     const gpa = std.testing.allocator;
 
-    const body =
-        \\{
-        \\  "plan_type": "ultra",
-        \\  "rate_limit": {
-        \\    "used_percent": 0,
-        \\    "window_seconds": 604800,
-        \\    "reset_after_seconds": 604800,
-        \\    "reset_at": 1774079459`
-        \\  }
-        \\}
-    ;
+    const body = "{" ++
+        "\"plan_type\": \"ultra\"," ++
+        "\"rate_limit\": {" ++
+        "\"used_percent\": 0," ++
+        "\"window_seconds\": 604800," ++
+        "\"reset_after_seconds\": 604800," ++
+        "\"reset_at\": 1774079459" ++
+        "}" ++
+    "}"; 
 
     const snapshot = (try usage_api.parseUsageResponse(gpa, body)) orelse return error.TestExpectedEqual;
     defer registry.freeRateLimitSnapshot(gpa, &snapshot);
@@ -64,17 +58,15 @@ test "parse usage api response maps ultra plan" {
 test "parse usage api response maps free plan" {
     const gpa = std.testing.allocator;
 
-    const body =
-        \\{
-        \\  "plan_type": "free",
-        \\  "rate_limit": {
-        \\    "used_percent": 5,
-        \\    "window_seconds": 604800,
-        \\    "reset_after_seconds": 274961,
-        \\    "reset_at": 1773749620`
-        \\  }
-        \\}
-    ;
+    const body = "{" ++
+        "\"plan_type\": \"free\"," ++
+        "\"rate_limit\": {" ++
+        "\"used_percent\": 5," ++
+        "\"window_seconds\": 604800," ++
+        "\"reset_after_seconds\": 274961," ++
+        "\"reset_at\": 1773749620" ++
+        "}" ++
+    "}"; 
 
     const snapshot = (try usage_api.parseUsageResponse(gpa, body)) orelse return error.TestExpectedEqual;
     defer registry.freeRateLimitSnapshot(gpa, &snapshot);

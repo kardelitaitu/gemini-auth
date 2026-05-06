@@ -42,11 +42,9 @@ test "background account-name refresh returns early when another refresh holds t
         fn unexpectedFetcher(
             allocator: std.mem.Allocator,
             access_token: []const u8,
-            account_id: []const u8,
-        ) !account_api.FetchResult {
+        ) !?account_api.AccountEntry {
             _ = allocator;
             _ = access_token;
-            _ = account_id;
             fetch_count += 1;
             return error.TestUnexpectedFetch;
         }
@@ -116,6 +114,7 @@ fn appendLiveMergeTestAccount(
     account_key: []const u8,
     email: []const u8,
     alias: []const u8,
+    plan: registry.PlanType,
 ) !void {
     const sep = std.mem.lastIndexOf(u8, account_key, "::") orelse return error.InvalidRecordKey;
     const google_user_id = account_key[sep + 2 ..];
@@ -271,7 +270,7 @@ test "live refresh merge preserves accounts newly added to the latest registry" 
         .accounts = std.ArrayList(registry.AccountRecord).empty,
     };
     defer base.deinit(gpa);
-    try appendLiveMergeTestAccount(gpa, &base, "user-alpha::acct-alpha", "alpha@example.com", "alpha");
+    try appendLiveMergeTestAccount(gpa, &base, "user-alpha::acct-alpha", "alpha@example.com", "alpha", .pro);
 
     var refreshed: registry.Registry = .{
         .schema_version = registry.current_schema_version,
@@ -282,7 +281,7 @@ test "live refresh merge preserves accounts newly added to the latest registry" 
         .accounts = std.ArrayList(registry.AccountRecord).empty,
     };
     defer refreshed.deinit(gpa);
-    try appendLiveMergeTestAccount(gpa, &refreshed, "user-alpha::acct-alpha", "alpha@example.com", "alpha");
+    try appendLiveMergeTestAccount(gpa, &refreshed, "user-alpha::acct-alpha", "alpha@example.com", "alpha", .pro);
     refreshed.accounts.items[0].account_name = try gpa.dupe(u8, "Alpha Workspace");
 
     var latest: registry.Registry = .{
@@ -294,8 +293,8 @@ test "live refresh merge preserves accounts newly added to the latest registry" 
         .accounts = std.ArrayList(registry.AccountRecord).empty,
     };
     defer latest.deinit(gpa);
-    try appendLiveMergeTestAccount(gpa, &latest, "user-alpha::acct-alpha", "alpha@example.com", "alpha");
-    try appendLiveMergeTestAccount(gpa, &latest, "user-beta::acct-beta", "beta@example.com", "beta");
+    try appendLiveMergeTestAccount(gpa, &latest, "user-alpha::acct-alpha", "alpha@example.com", "alpha", .pro);
+    try appendLiveMergeTestAccount(gpa, &latest, "user-beta::acct-beta", "beta@example.com", "beta", .pro);
 
     const changed = try mergeSwitchLiveRefreshIntoLatest(gpa, &latest, &base, &refreshed);
     try std.testing.expect(changed);
@@ -351,8 +350,8 @@ test "switch live action patches the current display after switching" {
         .accounts = std.ArrayList(registry.AccountRecord).empty,
     };
     defer reg.deinit(gpa);
-    try appendLiveMergeTestAccount(gpa, &reg, alpha_key, "alpha@example.com", "");
-    try appendLiveMergeTestAccount(gpa, &reg, beta_key, "beta@example.com", "");
+    try appendLiveMergeTestAccount(gpa, &reg, alpha_key, "alpha@example.com", "", .pro);
+    try appendLiveMergeTestAccount(gpa, &reg, beta_key, "beta@example.com", "", .pro);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Registry Beta");
     try registry.setActiveAccountKey(gpa, &reg, alpha_key);
     try registry.saveRegistry(gpa, gemini_home, &reg);
@@ -534,8 +533,8 @@ test "remove live action patches the current display after deleting the active a
         .accounts = std.ArrayList(registry.AccountRecord).empty,
     };
     defer reg.deinit(gpa);
-    try appendLiveMergeTestAccount(gpa, &reg, alpha_key, "alpha@example.com", "");
-    try appendLiveMergeTestAccount(gpa, &reg, beta_key, "beta@example.com", "");
+    try appendLiveMergeTestAccount(gpa, &reg, alpha_key, "alpha@example.com", "", .pro);
+    try appendLiveMergeTestAccount(gpa, &reg, beta_key, "beta@example.com", "", .pro);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Registry Alpha");
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Registry Beta");
     const future_primary_reset_at = nowSeconds() + 60 * 60;
@@ -654,8 +653,8 @@ test "remove live action does not wait for an in-flight refresh" {
         .accounts = std.ArrayList(registry.AccountRecord).empty,
     };
     defer reg.deinit(gpa);
-    try appendLiveMergeTestAccount(gpa, &reg, alpha_key, "alpha@example.com", "");
-    try appendLiveMergeTestAccount(gpa, &reg, beta_key, "beta@example.com", "");
+    try appendLiveMergeTestAccount(gpa, &reg, alpha_key, "alpha@example.com", "", .pro);
+    try appendLiveMergeTestAccount(gpa, &reg, beta_key, "beta@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, alpha_key);
     try registry.saveRegistry(gpa, gemini_home, &reg);
     try writeLiveActionTestSnapshot(gpa, gemini_home, alpha_key, "alpha@example.com", "team");
