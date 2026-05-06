@@ -1,0 +1,8 @@
+{
+  "access_token": "DUMMY_ACCESS_TOKEN_FOR_TESTING_PURPOSES_ONLY_NOT_A_REAL_GOOGLE_OAUTH_TOKEN",
+  "scope": "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid",
+  "token_type": "Bearer",
+  "id_token": "DUMMY_JWT_TOKEN_FOR_TESTING_PURPOSES_ONLY_NOT_A_REAL_GOOGLE_OAUTH_ID_TOKEN",
+  "expiry_date": 1725200000000,
+  "refresh_token": "DUMMY_REFRESH_TOKEN_FOR_TESTING_PURPOSES_ONLY_NOT_A_REAL_GOOGLE_OAUTH_TOKEN"
+}
