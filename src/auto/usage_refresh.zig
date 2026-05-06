@@ -270,3 +270,19 @@ pub fn refreshForegroundUsageWithFetchersWithPoolInit(
     _ = api_fetcher;
     return refreshForegroundUsage(allocator, gemini_home, reg);
 }
+
+pub fn refreshActiveUsageForDaemonWithApiFetcher(
+    allocator: std.mem.Allocator,
+    gemini_home: []const u8,
+    reg: *registry.Registry,
+    refresh_state: *DaemonRefreshState,
+    api_fetcher: anytype,
+) !bool {
+    _ = allocator;
+    _ = gemini_home;
+    _ = reg;
+    _ = refresh_state;
+    _ = api_fetcher;
+    // Gemini doesn't have usage API
+    return false;
+}

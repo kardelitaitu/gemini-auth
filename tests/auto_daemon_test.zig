@@ -45,7 +45,7 @@ fn appendGroupedAccount(
         .account_key = try allocator.dupe(u8, record_key),
         .google_user_id = try allocator.dupe(u8, user_id),
         .email = try allocator.dupe(u8, email),
-        .alias = try allocator.dupe(u8, alias),
+        .alias = try allocator.dupe(u8, account_id),
         .name = null,
         .account_name = null,
         .plan = plan,
@@ -1219,7 +1219,7 @@ test "Scenario: Given daemon api mode and an api-key candidate when auto switchi
     try fs.cwd().writeFile(.{ .sub_path = active_path, .data = active_auth });
 
     const candidate_idx = fixtures.findAccountIndexByEmail(&reg, "apikey@example.com") orelse return error.TestExpectedEqual;
-    reg.accounts.items[candidate_idx].plan = .apikey;
+    reg.accounts.items[candidate_idx].plan = .pro;
 
     candidate_api_fetch_count = 0;
     var refresh_state = auto.DaemonRefreshState{};

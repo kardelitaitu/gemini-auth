@@ -24,7 +24,8 @@ pub const AuthInfo = struct {
 };
 
 pub fn parseAuthInfo(allocator: std.mem.Allocator, auth_path: []const u8) !AuthInfo {
-    const abs_path = try app_runtime.realPathFileAlloc(allocator, auth_path);
+    const cwd = std.Io.Dir.cwd();
+    const abs_path = try app_runtime.realPathFileAlloc(allocator, cwd, auth_path);
     defer allocator.free(abs_path);
     const file = try std.fs.openFileAbsolute(abs_path, .{});
     defer file.close();

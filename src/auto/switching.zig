@@ -57,7 +57,7 @@ pub fn effective5hThresholdPercent(reg: *registry.Registry, rec: *const registry
 }
 
 pub fn maybeAutoSwitch(allocator: std.mem.Allocator, gemini_home: []const u8, reg: *registry.Registry) !bool {
-    const attempt = try maybeAutoSwitchWithUsageFetcher(allocator, gemini_home, reg, usage_api.fetchUsageForAuthPath);
+    const attempt = try maybeAutoSwitchWithUsageFetcher(allocator, gemini_home, reg, usage_api.fetchUsageForAuthPathDetailed);
     return attempt.switched;
 }
 
