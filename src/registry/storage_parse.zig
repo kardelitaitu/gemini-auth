@@ -28,7 +28,7 @@ pub fn parseAccountRecord(allocator: std.mem.Allocator, obj: std.json.ObjectMap)
     };
     if (account_key.len == 0) return error.MissingAccountKey;
     if (email.len == 0) return error.MissingEmail;
-    if (alias.len == 0) return error.MissingAlias;
+    // Allow empty aliases for backward compatibility
 
     var rec = AccountRecord{
         .account_key = try allocator.dupe(u8, account_key),

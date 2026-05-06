@@ -25,6 +25,10 @@ npm install -g @kardelitaitu/gemini
 
 After that, you can use `gemini login`, `gemini login --device-auth`, `gemini-auth login`, or `gemini-auth login --device-auth` to sign in and add accounts more easily.
 
+## Migration from codex-auth
+
+If you're migrating from `codex-auth` to `gemini-auth`, see the [migration guide](MIGRATION.md) for detailed instructions on updating your workflow and data.
+
 ## Install
 
 Install with npm:

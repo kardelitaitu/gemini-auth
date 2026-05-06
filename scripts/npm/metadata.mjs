@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const repoRoot = path.resolve(__dirname, "..", "..");
-export const rootPackageName = "@loongphy/gemini-auth";
+export const rootPackageName = "@kardelitaitu/gemini-auth";
 export const rootPublishDirName = "root";
 export const rootPackagePath = path.join(repoRoot, "package.json");
 export const rootReadmePath = path.join(repoRoot, "README.md");
@@ -17,7 +17,7 @@ export const zigVersionPath = path.join(repoRoot, "src", "version.zig");
 export const platformPackages = [
   {
     id: "linux-x64",
-    packageName: "@loongphy/gemini-auth-linux-x64",
+    packageName: "@kardelitaitu/gemini-auth-linux-x64",
     packageDirName: "gemini-auth-linux-x64",
     os: "linux",
     cpu: "x64",
@@ -28,7 +28,7 @@ export const platformPackages = [
   },
   {
     id: "linux-arm64",
-    packageName: "@loongphy/gemini-auth-linux-arm64",
+    packageName: "@kardelitaitu/gemini-auth-linux-arm64",
     packageDirName: "gemini-auth-linux-arm64",
     os: "linux",
     cpu: "arm64",
@@ -39,7 +39,7 @@ export const platformPackages = [
   },
   {
     id: "darwin-x64",
-    packageName: "@loongphy/gemini-auth-darwin-x64",
+    packageName: "@kardelitaitu/gemini-auth-darwin-x64",
     packageDirName: "gemini-auth-darwin-x64",
     os: "darwin",
     cpu: "x64",
@@ -50,7 +50,7 @@ export const platformPackages = [
   },
   {
     id: "darwin-arm64",
-    packageName: "@loongphy/gemini-auth-darwin-arm64",
+    packageName: "@kardelitaitu/gemini-auth-darwin-arm64",
     packageDirName: "gemini-auth-darwin-arm64",
     os: "darwin",
     cpu: "arm64",
@@ -61,7 +61,7 @@ export const platformPackages = [
   },
   {
     id: "win32-x64",
-    packageName: "@loongphy/gemini-auth-win32-x64",
+    packageName: "@kardelitaitu/gemini-auth-win32-x64",
     packageDirName: "gemini-auth-win32-x64",
     os: "win32",
     cpu: "x64",
@@ -72,7 +72,7 @@ export const platformPackages = [
   },
   {
     id: "win32-arm64",
-    packageName: "@loongphy/gemini-auth-win32-arm64",
+    packageName: "@kardelitaitu/gemini-auth-win32-arm64",
     packageDirName: "gemini-auth-win32-arm64",
     os: "win32",
     cpu: "arm64",
