@@ -5,6 +5,7 @@ const common = @import("common.zig");
 const clean = @import("clean.zig");
 const parse = @import("parse.zig");
 const account_ops = @import("account_ops.zig");
+const storage = @import("storage.zig");
 
 const PlanType = common.PlanType;
 const AutoSwitchConfig = common.AutoSwitchConfig;
@@ -69,7 +70,7 @@ pub fn purgeRegistryFromImportSourceWithSaver(
 
     const carry_forward = try loadPurgeCarryForwardConfig(allocator, gemini_home);
 
-    var reg = defaultRegistry();
+    var reg = storage.defaultRegistry();
     reg.auto_switch = carry_forward.auto_switch;
     reg.api = carry_forward.api;
     reg.live = carry_forward.live;

@@ -77,14 +77,14 @@ pub fn loadCurrentAuthState(allocator: std.mem.Allocator, gemini_home: []const u
     };
     defer info.deinit(allocator);
 
-    const record_key = if (info.record_key) |key|
+    const record_key = if (info.google_user_id) |key|
         try allocator.dupe(u8, key)
     else
         null;
 
     return .{
         .record_key = record_key,
-        .syncable = info.email != null and info.record_key != null,
+        .syncable = info.email != null and info.google_user_id != null,
         .missing = false,
     };
 }

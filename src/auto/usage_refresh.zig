@@ -3,6 +3,7 @@ const app_runtime = @import("../core/runtime.zig");
 const registry = @import("../registry/root.zig");
 const sessions = @import("../session.zig");
 const usage_api = @import("../api/usage.zig");
+const account_api = @import("../api/account.zig");
 const files = @import("files.zig");
 const logging = @import("logging.zig");
 const state = @import("state.zig");
@@ -35,10 +36,11 @@ fn fetchActiveUsage(
     gemini_home: []const u8,
     reg: *registry.Registry,
     fetcher: anytype,
-) !usage_api.FetchResult {
+) !usage_api.UsageFetchResult {
     _ = allocator;
     _ = gemini_home;
     _ = reg;
+    _ = fetcher;
     // TBD: Implement when Gemini API is available
     return .{ .snapshot = null, .status_code = null };
 }
@@ -69,7 +71,7 @@ pub fn refreshActiveUsageForDaemon(
     reg: *registry.Registry,
     refresh_state: *DaemonRefreshState,
 ) !bool {
-    if (refreshActiveUsageFromApi(allocator, gemini_home, reg, refresh_state)) return true;
+    if (try refreshActiveUsageFromApi(allocator, gemini_home, reg, refresh_state)) return true;
     return refreshActiveUsageFromSessions(allocator, gemini_home, reg, refresh_state);
 }
 
@@ -120,6 +122,7 @@ fn refreshActiveUsageFromSessions(
     reg: *registry.Registry,
     refresh_state: *DaemonRefreshState,
 ) !bool {
+    _ = refresh_state;
     const latest = sessions.scanLatestUsageWithSource(allocator, gemini_home) catch |err| switch (err) {
         error.FileNotFound => return false,
         else => {
@@ -130,35 +133,38 @@ fn refreshActiveUsageFromSessions(
             return false;
         },
     };
-    defer latest.deinit(allocator);
+    if (latest) |l| {
+        defer l.deinit(allocator);
 
-    const event_timestamp_ms = latest.event_timestamp_ms;
-    const account_key = reg.active_account_key orelse return false;
-    const activated_at_ms = reg.active_account_activated_at_ms orelse 0;
+        const event_timestamp_ms = l.event_timestamp_ms;
+        const account_key = reg.active_account_key orelse return false;
+        const activated_at_ms = reg.active_account_activated_at_ms orelse 0;
 
-    if (event_timestamp_ms < activated_at_ms) return false;
+        if (event_timestamp_ms < activated_at_ms) return false;
 
-    const signature: registry.RolloutSignature = .{
-        .path = try allocator.dupe(u8, latest.path) catch |err| {
+        const path = allocator.dupe(u8, l.path) catch |err| {
             emitTaggedDaemonLog(.warning, "local", "refresh usage{s}status={s}", .{
                 fieldSeparator(),
                 @errorName(err),
             });
             return false;
-        },
-        .event_timestamp_ms = event_timestamp_ms,
-    };
-    errdefer registry.freeRolloutSignature(allocator, &signature);
+        };
+        const signature: registry.RolloutSignature = .{
+            .path = path,
+            .event_timestamp_ms = event_timestamp_ms,
+        };
+        errdefer registry.freeRolloutSignature(allocator, &signature);
 
-    const idx = registry.findAccountIndexByAccountKey(reg, account_key) orelse return false;
-    if (registry.rolloutSignaturesEqual(reg.accounts.items[idx].last_local_rollout, signature)) return false;
+        const idx = registry.findAccountIndexByAccountKey(reg, account_key) orelse return false;
+        if (registry.rolloutSignaturesEqual(reg.accounts.items[idx].last_local_rollout, signature)) return false;
 
-    const snapshot = latest.usage orelse return false;
-    if (registry.rateLimitSnapshotsEqual(reg.accounts.items[idx].last_usage, snapshot)) return false;
+        const snapshot = l.snapshot;
+        if (registry.rateLimitSnapshotsEqual(reg.accounts.items[idx].last_usage, snapshot)) return false;
 
-    registry.updateUsage(allocator, reg, account_key, snapshot);
-    try registry.setAccountLastLocalRollout(allocator, &reg.accounts.items[idx], latest.path, event_timestamp_ms);
-    return true;
+        registry.updateUsage(allocator, reg, account_key, snapshot);
+        try registry.setAccountLastLocalRollout(allocator, &reg.accounts.items[idx], l.path, event_timestamp_ms);
+        return true;
+    } else return false;
 }
 
 pub fn refreshActiveUsageForDisplay(
@@ -188,7 +194,30 @@ pub fn refreshActiveUsageForDisplayWithApiFetchersWithPoolInit(
     return refreshActiveUsageWithApiFetcher(allocator, gemini_home, reg, usage_api.fetchActiveUsage);
 }
 
-pub fn ForegroundUsageOutcome = enum { unchanged, updated };
+pub const ForegroundUsageOutcome = enum { unchanged, updated };
+
+pub fn fetchActiveAccountNames(allocator: std.mem.Allocator, gemini_home: []const u8) ![]account_api.AccountEntry {
+    _ = allocator;
+    _ = gemini_home;
+    // TBD: Implement Gemini account fetching
+    return &[_]account_api.AccountEntry{};
+}
+
+pub fn refreshActiveAccountNamesForDaemonWithFetcher(
+    allocator: std.mem.Allocator,
+    gemini_home: []const u8,
+    reg: *registry.Registry,
+    refresh_state: *DaemonRefreshState,
+    fetcher: anytype,
+) !bool {
+    _ = allocator;
+    _ = gemini_home;
+    _ = reg;
+    _ = refresh_state;
+    _ = fetcher;
+    // TBD: Implement
+    return false;
+}
 
 pub const ForegroundUsageRefreshState = struct {
     rollout_scan_cache: ?sessions.RolloutScanCache,

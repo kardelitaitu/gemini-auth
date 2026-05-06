@@ -52,7 +52,7 @@ fn parsePurgeCarryForwardConfig(allocator: std.mem.Allocator, data: []const u8) 
     switch (parsed.value) {
         .object => |obj| {
             if (obj.get("auto_switch")) |v| parseAutoSwitch(allocator, &cfg.auto_switch, v);
-            if (obj.get("api")) |v| parseApiConfig(&cfg.api, v);
+            if (obj.get("api")) |v| cfg.api = try parseApiConfig(allocator, v);
             if (obj.get("live")) |v| parseLiveConfig(&cfg.live, v);
         },
         else => {},
@@ -64,8 +64,8 @@ fn parseCarryForwardAutoSwitch(allocator: std.mem.Allocator, value: std.json.Val
     parseAutoSwitch(allocator, target, value);
 }
 
-fn parseCarryForwardApiConfig(_: std.mem.Allocator, value: std.json.Value, target: *ApiConfig) void {
-    parseApiConfig(target, value);
+fn parseCarryForwardApiConfig(allocator: std.mem.Allocator, value: std.json.Value, target: *ApiConfig) void {
+    target.* = parseApiConfig(allocator, value) catch common.defaultApiConfig();
 }
 
 fn parseCarryForwardLiveConfig(_: std.mem.Allocator, value: std.json.Value, target: *LiveConfig) void {

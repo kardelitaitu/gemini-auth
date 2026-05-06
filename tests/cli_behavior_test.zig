@@ -28,17 +28,15 @@ fn appendAccount(
     plan: registry.PlanType,
 ) !void {
     const sep = std.mem.lastIndexOf(u8, record_key, "::") orelse return error.InvalidRecordKey;
-    const google_user_id = record_key[0..sep];
     const google_user_id = record_key[sep + 2 ..];
     try reg.accounts.append(allocator, .{
         .account_key = try allocator.dupe(u8, record_key),
         .google_user_id = try allocator.dupe(u8, google_user_id),
-        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, alias),
+        .name = null,
         .account_name = null,
         .plan = plan,
-        .plan = .chatgpt,
         .created_at = 1,
         .last_used_at = null,
         .last_usage = null,
@@ -1195,8 +1193,8 @@ test "Scenario: Given singleton aliases from different emails when building remo
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-4QmYj7PkN2sLx8AcVbR3TwHd::account_123", "alpha@example.com", "work", .team);
-    try appendAccount(gpa, &reg, "user-8LnCq5VzR1mHx9SfKpT4JdWe::518a44d9-ba75-4bad-87e5-ae9377042960", "beta@example.com", "work", .team);
+    try appendAccount(gpa, &reg, "user-4QmYj7PkN2sLx8AcVbR3TwHd::account_123", "alpha@example.com", "work", .pro);
+    try appendAccount(gpa, &reg, "user-8LnCq5VzR1mHx9SfKpT4JdWe::518a44d9-ba75-4bad-87e5-ae9377042960", "beta@example.com", "work", .pro);
 
     const indices = [_]usize{ 0, 1 };
     var labels = try cli.output.buildRemoveLabels(gpa, &reg, &indices);
@@ -1215,9 +1213,9 @@ test "Scenario: Given singleton account names from different emails when buildin
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-4QmYj7PkN2sLx8AcVbR3TwHd::account_123", "alpha@example.com", "", .team);
+    try appendAccount(gpa, &reg, "user-4QmYj7PkN2sLx8AcVbR3TwHd::account_123", "alpha@example.com", "", .pro);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Workspace");
-    try appendAccount(gpa, &reg, "user-8LnCq5VzR1mHx9SfKpT4JdWe::518a44d9-ba75-4bad-87e5-ae9377042960", "beta@example.com", "", .team);
+    try appendAccount(gpa, &reg, "user-8LnCq5VzR1mHx9SfKpT4JdWe::518a44d9-ba75-4bad-87e5-ae9377042960", "beta@example.com", "", .pro);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Workspace");
 
     const indices = [_]usize{ 0, 1 };

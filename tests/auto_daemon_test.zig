@@ -33,24 +33,23 @@ const daemon_secondary_account_id = "518a44d9-ba75-4bad-87e5-ae9377042960";
 fn appendGroupedAccount(
     allocator: std.mem.Allocator,
     reg: *registry.Registry,
-    google_user_id: []const u8,
-    google_user_id: []const u8,
+    account_id: []const u8,
+    user_id: []const u8,
     email: []const u8,
     plan: registry.PlanType,
 ) !void {
-    const record_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ google_user_id, google_user_id });
+    const record_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ account_id, user_id });
     errdefer allocator.free(record_key);
 
     try reg.accounts.append(allocator, .{
-        .account_key = record_key,
-        .google_user_id = try allocator.dupe(u8, google_user_id),
-        .google_user_id = try allocator.dupe(u8, google_user_id),
+        .account_key = try allocator.dupe(u8, record_key),
+        .google_user_id = try allocator.dupe(u8, user_id),
         .email = try allocator.dupe(u8, email),
-        .alias = try allocator.dupe(u8, ""),
+        .alias = try allocator.dupe(u8, alias),
+        .name = null,
         .account_name = null,
         .plan = plan,
-        .plan = .chatgpt,
-        .created_at = std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds(),
+        .created_at = 1,
         .last_used_at = null,
         .last_usage = null,
         .last_usage_at = null,
@@ -62,14 +61,14 @@ fn authJsonWithIds(
     allocator: std.mem.Allocator,
     email: []const u8,
     plan: []const u8,
-    google_user_id: []const u8,
-    google_user_id: []const u8,
+    account_id: []const u8,
+    user_id: []const u8,
 ) ![]u8 {
     const header = "{\"alg\":\"none\",\"typ\":\"JWT\"}";
     const payload = try std.fmt.allocPrint(
         allocator,
         "{{\"email\":\"{s}\",\"https://www.googleapis.com/auth\":{{\"google_user_id\":\"{s}\",\"google_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
-        .{ email, google_user_id, google_user_id, google_user_id, plan },
+        .{ email, account_id, user_id, user_id, plan },
     );
     defer allocator.free(payload);
 
@@ -92,13 +91,13 @@ fn writeActiveAuthWithIds(
     gemini_home: []const u8,
     email: []const u8,
     plan: []const u8,
-    google_user_id: []const u8,
-    google_user_id: []const u8,
+    account_id: []const u8,
+    user_id: []const u8,
 ) !void {
     const auth_path = try registry.activeAuthPath(allocator, gemini_home);
     defer allocator.free(auth_path);
 
-    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id, google_user_id);
+    const auth_json = try authJsonWithIds(allocator, email, plan, account_id, user_id);
     defer allocator.free(auth_json);
     try fs.cwd().writeFile(.{ .sub_path = auth_path, .data = auth_json });
 }
@@ -108,10 +107,10 @@ fn writeAccountSnapshotWithIds(
     gemini_home: []const u8,
     email: []const u8,
     plan: []const u8,
-    google_user_id: []const u8,
-    google_user_id: []const u8,
+    account_id: []const u8,
+    user_id: []const u8,
 ) !void {
-    const account_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ google_user_id, google_user_id });
+    const account_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ account_id, user_id });
     defer allocator.free(account_key);
 
     const auth_path = try registry.accountAuthPath(allocator, gemini_home, account_key);
@@ -191,11 +190,11 @@ test "Scenario: Given auto-switch daemon with missing grouped account names when
     defer reg.deinit(gpa);
     reg.auto_switch.enabled = true;
     reg.api.usage = false;
-    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .team);
-    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .team);
+    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .pro);
+    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .pro);
     try registry.setActiveAccountKey(gpa, &reg, reg.accounts.items[0].account_key);
     try registry.saveRegistry(gpa, gemini_home, &reg);
-    try writeActiveAuthWithIds(gpa, gemini_home, "group@example.com", "team", daemon_grouped_user_id, daemon_primary_account_id);
+    try writeActiveAuthWithIds(gpa, gemini_home, "group@example.com", "pro", daemon_grouped_user_id, daemon_primary_account_id);
 
     resetDaemonAccountNameFetcher();
     var refresh_state = auto.DaemonRefreshState{};
@@ -234,8 +233,8 @@ test "Scenario: Given auto-switch disabled when account names are missing then t
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
     reg.api.usage = false;
-    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .team);
-    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .team);
+    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .pro);
+    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .pro);
     try registry.setActiveAccountKey(gpa, &reg, reg.accounts.items[0].account_key);
 
     resetDaemonAccountNameFetcher();
@@ -265,11 +264,11 @@ test "Scenario: Given daemon account-name refresh when registry changes during f
     reg.auto_switch.enabled = true;
     reg.api.usage = true;
     reg.api.account = true;
-    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .team);
-    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .team);
+    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .pro);
+    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .pro);
     try registry.setActiveAccountKey(gpa, &reg, reg.accounts.items[0].account_key);
     try registry.saveRegistry(gpa, gemini_home, &reg);
-    try writeActiveAuthWithIds(gpa, gemini_home, "group@example.com", "team", daemon_grouped_user_id, daemon_primary_account_id);
+    try writeActiveAuthWithIds(gpa, gemini_home, "group@example.com", "pro", daemon_grouped_user_id, daemon_primary_account_id);
 
     const rewrite_gemini_home = try gpa.dupe(u8, gemini_home);
     defer gpa.free(rewrite_gemini_home);
@@ -308,16 +307,16 @@ test "Scenario: Given auto-switch daemon with only another user missing grouped 
     reg.auto_switch.enabled = true;
     reg.api.usage = false;
     reg.api.account = true;
-    try appendGroupedAccount(gpa, &reg, "user-active", "acct-active-a", "active@example.com", .team);
+    try appendGroupedAccount(gpa, &reg, "user-active", "acct-active-a", "active@example.com", .pro);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Active Workspace");
-    try appendGroupedAccount(gpa, &reg, "user-active", "acct-active-b", "active@example.com", .team);
+    try appendGroupedAccount(gpa, &reg, "user-active", "acct-active-b", "active@example.com", .pro);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Active Backup");
-    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .team);
-    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .team);
+    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .pro);
+    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .pro);
     try registry.setActiveAccountKey(gpa, &reg, reg.accounts.items[0].account_key);
     try registry.saveRegistry(gpa, gemini_home, &reg);
-    try writeActiveAuthWithIds(gpa, gemini_home, "active@example.com", "team", "user-active", "acct-active-a");
-    try writeAccountSnapshotWithIds(gpa, gemini_home, "group@example.com", "team", daemon_grouped_user_id, daemon_primary_account_id);
+    try writeActiveAuthWithIds(gpa, gemini_home, "active@example.com", "pro", "user-active", "acct-active-a");
+    try writeAccountSnapshotWithIds(gpa, gemini_home, "group@example.com", "pro", daemon_grouped_user_id, daemon_primary_account_id);
 
     resetDaemonAccountNameFetcher();
     var refresh_state = auto.DaemonRefreshState{};
@@ -350,17 +349,17 @@ test "Scenario: Given auto-switch daemon with grouped team names and only a stor
     reg.auto_switch.enabled = true;
     reg.api.usage = false;
     reg.api.account = true;
-    try appendGroupedAccount(gpa, &reg, "user-active", "acct-active-a", "active@example.com", .team);
+    try appendGroupedAccount(gpa, &reg, "user-active", "acct-active-a", "active@example.com", .pro);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Active Workspace");
-    try appendGroupedAccount(gpa, &reg, "user-active", "acct-active-b", "active@example.com", .team);
+    try appendGroupedAccount(gpa, &reg, "user-active", "acct-active-b", "active@example.com", .pro);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Active Backup");
-    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .team);
-    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .team);
+    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_primary_account_id, "group@example.com", .pro);
+    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, daemon_secondary_account_id, "group@example.com", .pro);
     reg.accounts.items[3].account_name = try gpa.dupe(u8, "Old Backup Workspace");
-    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, "acct-plus", "group@example.com", .plus);
+    try appendGroupedAccount(gpa, &reg, daemon_grouped_user_id, "acct-plus", "group@example.com", .pro);
     try registry.setActiveAccountKey(gpa, &reg, reg.accounts.items[0].account_key);
     try registry.saveRegistry(gpa, gemini_home, &reg);
-    try writeActiveAuthWithIds(gpa, gemini_home, "active@example.com", "team", "user-active", "acct-active-a");
+    try writeActiveAuthWithIds(gpa, gemini_home, "active@example.com", "pro", "user-active", "acct-active-a");
     try writeAccountSnapshotWithIds(gpa, gemini_home, "group@example.com", "plus", daemon_grouped_user_id, "acct-plus");
 
     resetDaemonAccountNameFetcher();
@@ -2101,7 +2100,7 @@ test "Scenario: Given latest rollout file without usable rate limits when refres
         .primary = .{ .used_percent = 41.0, .window_minutes = 300, .resets_at = null },
         .secondary = .{ .used_percent = 12.0, .window_minutes = 10080, .resets_at = null },
         .credits = null,
-        .plan_type = .team,
+        .plan_type = .pro,
     }, 777);
     const active_account_key = try fixtures.accountKeyForEmailAlloc(gpa, "active@example.com");
     defer gpa.free(active_account_key);

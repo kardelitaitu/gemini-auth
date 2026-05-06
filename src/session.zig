@@ -9,7 +9,7 @@ pub const LatestUsage = struct {
     event_timestamp_ms: i64,
     snapshot: registry.RateLimitSnapshot,
 
-    pub fn deinit(self: *LatestUsage, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *const LatestUsage, allocator: std.mem.Allocator) void {
         allocator.free(self.path);
         registry.freeRateLimitSnapshot(allocator, &self.snapshot);
     }
@@ -472,13 +472,13 @@ fn parseCredits(allocator: std.mem.Allocator, parsed: UsageCreditsJson) registry
 
 fn parsePlanType(s: []const u8) registry.PlanType {
     if (std.ascii.eqlIgnoreCase(s, "free")) return .free;
-    if (std.ascii.eqlIgnoreCase(s, "plus")) return .plus;
-    if (std.ascii.eqlIgnoreCase(s, "prolite")) return .prolite;
+    if (std.ascii.eqlIgnoreCase(s, "plus")) return .pro;
+    if (std.ascii.eqlIgnoreCase(s, "prolite")) return .pro;
     if (std.ascii.eqlIgnoreCase(s, "pro")) return .pro;
-    if (std.ascii.eqlIgnoreCase(s, "team")) return .team;
-    if (std.ascii.eqlIgnoreCase(s, "business")) return .business;
-    if (std.ascii.eqlIgnoreCase(s, "enterprise")) return .enterprise;
-    if (std.ascii.eqlIgnoreCase(s, "edu")) return .edu;
+    if (std.ascii.eqlIgnoreCase(s, "team")) return .pro;
+    if (std.ascii.eqlIgnoreCase(s, "business")) return .pro;
+    if (std.ascii.eqlIgnoreCase(s, "enterprise")) return .ultra;
+    if (std.ascii.eqlIgnoreCase(s, "edu")) return .free;
     return .unknown;
 }
 

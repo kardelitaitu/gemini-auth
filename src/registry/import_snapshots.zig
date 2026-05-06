@@ -75,8 +75,8 @@ pub fn importAccountsSnapshotDirectory(
             allocator.free(file_path);
             continue;
         };
-        const record_key = info.record_key orelse {
-            try report.addEvent(allocator, label, .skipped, importReasonLabel(error.MissingChatgptUserId));
+        const record_key = info.google_user_id orelse {
+            try report.addEvent(allocator, label, .skipped, importReasonLabel(error.MissingGoogleUserId));
             file_path_owned = false;
             allocator.free(file_path);
             continue;

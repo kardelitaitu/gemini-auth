@@ -8,7 +8,7 @@ test "parse Gemini OAuth2 auth info from oauth_creds.json" {
     const auth_path = try fixtures.geminiAuthPathAlloc(gpa);
     defer gpa.free(auth_path);
 
-    const info = try auth.parseAuthInfo(gpa, auth_path);
+    const info = try auth.core.parseAuthInfo(gpa, auth_path);
     defer info.deinit(gpa);
 
     // Verify basic structure
@@ -30,7 +30,7 @@ test "parse auth info handles missing file" {
 
     try std.testing.expectError(
         error.FileNotFound,
-        auth.parseAuthInfo(gpa, "nonexistent.json"),
+        auth.core.parseAuthInfo(gpa, "nonexistent.json"),
     );
 }
 
@@ -39,17 +39,17 @@ test "parse auth info handles invalid JSON" {
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(app_runtime.io(), .{
         .sub_path = "invalid.json",
         .data = "not json",
     });
 
-    const auth_path = try tmp.dir.realpathAlloc(gpa, "invalid.json");
+    const auth_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir, "invalid.json");
     defer gpa.free(auth_path);
 
     try std.testing.expectError(
         error.InvalidJson,
-        auth.parseAuthInfo(gpa, auth_path),
+        auth.core.parseAuthInfo(gpa, auth_path),
     );
 }
 
@@ -64,15 +64,15 @@ test "parse auth info handles missing access token" {
         \\  "refresh_token": "test-refresh",
         \\  "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5Y2FhZWNkZThmNDg1ZThmNTkzOGY0OGFiYTBjZTdhMzU4MWYwMjciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI2NjgxMjU4MDkzOTUtb284ZnQyb3Bkcm5wOWUzYXFmNmF2M2hoYjEzNWouYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI2NjgxMjU4MDkzOTUtb284ZnQyb3Bkcm5wOWUzYXFmNmF2M2hoYjEzNWouYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdwiOiIxMDk5MDAwMTMzNjc5MTQzNDI4MTUiLCJlbWFpbCI6ImFkaWthcmFkd2lhdG1hamFAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImF0X2hhc2giOiJScEVkU1JLOTcxSk52aDdra1RrNllNMVlEut1idDQ2TFgRkUxN1kxN1l5V0xVVlRN2lQIiwibmFtZSI6IkFkaWthcmFkd2lhdG1hamEiLCJwaWN0dXJlIjoiYGh0dHBzOi8vbGgMy5nb29nbGV1c2VyY29udGVudC5jb20vL2Evcm9weC8z2MGViqvL2JhjYTM2WSIsImdpdmVuX25hbWUiOiJBZGlrYXJhIiwiZmFtaWx5bmFtZSI6IkF0bWFqYSIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vL2Evcm9weC8z2MGViqvL2JhjYTM2WSJ9.sVD1PAPRXlsjxim2Say_TTRxrv9btQ-11JvtsOXVpm3UXcUu2cjJKuDVCAvxqxZ5WlI2-mfUrbmIA91GF73bbUTyvxZwRkNK20CJTHi4981X-H8cHVctMPR0j899prYY4pa779_v4V7JovfvF48DGukuJvMZr0S8OVjX17kBikaJ6l2qspFybQ7Wl9V7BXeXg9f-nC3tmSogWcJoocWkYl5qsbBozIB7Vjs7G7vTWJV7GAs03hMVA4f1iQTSOqiLxgmD2HE_Fpzl6Nba1h1zyZtVMW7p8u5PezMvlURiVX025ujQ2SuBhR3R9dyAUdK-zhfSd78wkJ5mqDcHI6zoVA"
     ;
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(app_runtime.io(), .{
         .sub_path = "missing_access.json",
         .data = json,
     });
 
-    const auth_path = try tmp.dir.realpathAlloc(gpa, "missing_access.json");
+    const auth_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir, "missing_access.json");
     defer gpa.free(auth_path);
 
-    const info = try auth.parseAuthInfo(gpa, auth_path);
+    const info = try auth.core.parseAuthInfo(gpa, auth_path);
     defer info.deinit(gpa);
 
     try std.testing.expect(info.access_token == null);
@@ -93,15 +93,15 @@ test "parse auth info handles missing id_token" {
         \\  "expiry_date": 1777639046350
         \\}
     ;
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(app_runtime.io(), .{
         .sub_path = "missing_id.json",
         .data = json,
     });
 
-    const auth_path = try tmp.dir.realpathAlloc(gpa, "missing_id.json");
+    const auth_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir, "missing_id.json");
     defer gpa.free(auth_path);
 
-    const info = try auth.parseAuthInfo(gpa, auth_path);
+    const info = try auth.core.parseAuthInfo(gpa, auth_path);
     defer info.deinit(gpa);
 
     try std.testing.expect(info.access_token != null);
@@ -125,15 +125,15 @@ test "parse auth info handles invalid id_token" {
         \\  "expiry_date": 1777639046350
         \\}
     ;
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(app_runtime.io(), .{
         .sub_path = "invalid_id.json",
         .data = json,
     });
 
-    const auth_path = try tmp.dir.realpathAlloc(gpa, "invalid_id.json");
+    const auth_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir, "invalid_id.json");
     defer gpa.free(auth_path);
 
-    const info = try auth.parseAuthInfo(gpa, auth_path);
+    const info = try auth.core.parseAuthInfo(gpa, auth_path);
     defer info.deinit(gpa);
 
     try std.testing.expect(info.access_token != null);

@@ -178,7 +178,7 @@ pub fn takeOwnedSwitchSelectionDisplay(
 pub fn cloneAccountRecord(allocator: std.mem.Allocator, rec: *const registry.AccountRecord) !registry.AccountRecord {
     const account_key = try allocator.dupe(u8, rec.account_key);
     errdefer allocator.free(account_key);
-    const google_user_id = try allocator.dupe(u8, rec.google_user_id orelse rec.account_key);
+    const google_user_id = try allocator.dupe(u8, rec.google_user_id);
     errdefer allocator.free(google_user_id);
     const email = try allocator.dupe(u8, rec.email);
     errdefer allocator.free(email);
@@ -188,7 +188,7 @@ pub fn cloneAccountRecord(allocator: std.mem.Allocator, rec: *const registry.Acc
         try allocator.dupe(u8, value)
     else
         null;
-    errdeferin if (account_name) |value| allocator.free(value);
+    errdefer if (account_name) |value| allocator.free(value);
     const name = if (rec.name) |value|
         try allocator.dupe(u8, value)
     else
@@ -199,13 +199,13 @@ pub fn cloneAccountRecord(allocator: std.mem.Allocator, rec: *const registry.Acc
         try registry.cloneRateLimitSnapshot(allocator, snapshot)
     else
         null;
-    errdeferin if (last_usage) |*snapshot| registry.freeRateLimitSnapshot(allocator, snapshot);
+    errdefer if (last_usage) |*snapshot| registry.freeRateLimitSnapshot(allocator, snapshot);
 
     const last_local_rollout = if (rec.last_local_rollout) |signature|
         try registry.cloneRolloutSignature(allocator, signature)
     else
         null;
-    errdeferin if (last_local_rollout) |*signature| registry.freeRolloutSignature(allocator, signature);
+    errdefer if (last_local_rollout) |*signature| registry.freeRolloutSignature(allocator, signature);
 
     return .{
         .account_key = account_key,
@@ -446,9 +446,6 @@ pub fn loadSwitchSelectionDisplay(
 
     ensureForegroundNodeAvailableWithApiEnabled(
         allocator,
-        gemini_home,
-        &refreshed,
-        target,
         initial_policy.usage_api_enabled,
         initial_policy.account_api_enabled,
     ) catch |err| switch (err) {

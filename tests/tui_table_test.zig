@@ -35,17 +35,15 @@ fn appendTestAccount(
     plan: registry.PlanType,
 ) !void {
     const sep = std.mem.lastIndexOf(u8, record_key, "::") orelse return error.InvalidRecordKey;
-    const google_user_id = record_key[0..sep];
     const google_user_id = record_key[sep + 2 ..];
     try reg.accounts.append(allocator, .{
         .account_key = try allocator.dupe(u8, record_key),
         .google_user_id = try allocator.dupe(u8, google_user_id),
-        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, alias),
+        .name = null,
         .account_name = null,
         .plan = plan,
-        .plan = .chatgpt,
         .created_at = 1,
         .last_used_at = null,
         .last_usage = null,
@@ -91,7 +89,7 @@ test "writeAccountsTable shows zero-padded row numbers for selectable accounts" 
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .pro);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Als's Workspace");
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "user@example.com", "", .free);
 
@@ -109,7 +107,7 @@ test "writeAccountsTable shows usage override statuses for failed refreshes" {
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .pro);
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "user@example.com", "", .free);
 
     const usage_overrides = [_]?[]const u8{ null, "403" };
@@ -127,7 +125,7 @@ test "writeAccountsTable highlights usage override rows in red when color is ena
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .pro);
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "user@example.com", "", .free);
 
     const usage_overrides = [_]?[]const u8{ null, "403" };
@@ -145,7 +143,7 @@ test "writeAccountsTable uses cyan headers green active rows and default normal 
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .pro);
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "normal@example.com", "", .free);
     reg.active_account_key = try gpa.dupe(u8, "user-1::acc-1");
 
@@ -164,12 +162,12 @@ test "writeAccountsTable prefers usage snapshot plan labels over stored auth pla
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .plus);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .pro);
     reg.accounts.items[0].last_usage = .{
         .primary = null,
         .secondary = null,
         .credits = null,
-        .plan_type = .team,
+        .plan_type = .pro,
     };
 
     var buffer: [2048]u8 = undefined;

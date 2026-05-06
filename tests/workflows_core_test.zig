@@ -52,17 +52,16 @@ fn appendAccount(
     plan: registry.PlanType,
 ) !void {
     const sep = std.mem.lastIndexOf(u8, record_key, "::") orelse return error.InvalidRecordKey;
-    const google_user_id = record_key[0..sep];
+    const google_user_id_part1 = record_key[0..sep];
     const google_user_id = record_key[sep + 2 ..];
     try reg.accounts.append(allocator, .{
         .account_key = try allocator.dupe(u8, record_key),
         .google_user_id = try allocator.dupe(u8, google_user_id),
-        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, alias),
+        .name = null,
         .account_name = null,
         .plan = plan,
-        .plan = .chatgpt,
         .created_at = 1,
         .last_used_at = null,
         .last_usage = null,
@@ -85,14 +84,14 @@ fn authJsonWithIds(
     allocator: std.mem.Allocator,
     email: []const u8,
     plan: []const u8,
-    google_user_id: []const u8,
-    google_user_id: []const u8,
+    google_user_id1: []const u8,
+    google_user_id2: []const u8,
 ) ![]u8 {
     const header = "{\"alg\":\"none\",\"typ\":\"JWT\"}";
     const payload = try std.fmt.allocPrint(
         allocator,
         "{{\"email\":\"{s}\",\"https://www.googleapis.com/auth\":{{\"google_user_id\":\"{s}\",\"google_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
-        .{ email, google_user_id, google_user_id, google_user_id, plan },
+        .{ email, google_user_id1, google_user_id1, google_user_id1, plan },
     );
     defer allocator.free(payload);
 
@@ -123,7 +122,7 @@ fn authJsonWithIdsAndLastRefresh(
     const payload = try std.fmt.allocPrint(
         allocator,
         "{{\"email\":\"{s}\",\"https://www.googleapis.com/auth\":{{\"google_user_id\":\"{s}\",\"google_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
-        .{ email, google_user_id, google_user_id, google_user_id, plan },
+        .{ email, google_user_id1, google_user_id1, google_user_id1, plan },
     );
     defer allocator.free(payload);
 
@@ -145,10 +144,10 @@ fn parseAuthInfoWithIds(
     allocator: std.mem.Allocator,
     email: []const u8,
     plan: []const u8,
-    google_user_id: []const u8,
-    google_user_id: []const u8,
+    google_user_id1: []const u8,
+    google_user_id2: []const u8,
 ) !auth_mod.AuthInfo {
-    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id, google_user_id);
+    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id1, google_user_id2);
     defer allocator.free(auth_json);
     return try auth_mod.parseAuthInfoData(allocator, auth_json);
 }
@@ -158,13 +157,13 @@ fn writeActiveAuthWithIds(
     gemini_home: []const u8,
     email: []const u8,
     plan: []const u8,
-    google_user_id: []const u8,
-    google_user_id: []const u8,
+    google_user_id1: []const u8,
+    google_user_id2: []const u8,
 ) !void {
     const auth_path = try registry.activeAuthPath(allocator, gemini_home);
     defer allocator.free(auth_path);
 
-    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id, google_user_id);
+    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id1, google_user_id2);
     defer allocator.free(auth_json);
     try fs.cwd().writeFile(.{ .sub_path = auth_path, .data = auth_json });
 }
@@ -174,17 +173,17 @@ fn writeAccountSnapshotWithIds(
     gemini_home: []const u8,
     email: []const u8,
     plan: []const u8,
-    google_user_id: []const u8,
-    google_user_id: []const u8,
+    google_user_id1: []const u8,
+    google_user_id2: []const u8,
 ) !void {
-    const account_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ google_user_id, google_user_id });
+    const account_key = try std.fmt.allocPrint(allocator, "{s}::{s}", .{ google_user_id1, google_user_id2 });
     defer allocator.free(account_key);
 
     try registry.ensureAccountsDir(allocator, gemini_home);
     const auth_path = try registry.accountAuthPath(allocator, gemini_home, account_key);
     defer allocator.free(auth_path);
 
-    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id, google_user_id);
+    const auth_json = try authJsonWithIds(allocator, email, plan, google_user_id1, google_user_id2);
     defer allocator.free(auth_json);
     try fs.cwd().writeFile(.{ .sub_path = auth_path, .data = auth_json });
 }
@@ -285,8 +284,8 @@ test "Scenario: Given alias, email, and account name queries when finding matchi
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-A1B2C3D4E5F6::account_123", "user@example.com", "team-work", .team);
-    try appendAccount(gpa, &reg, "user-Z9Y8X7W6V5U4::518a44d9-ba75-4bad-87e5-ae9377042960", "other@example.com", "", .plus);
+    try appendAccount(gpa, &reg, "user-A1B2C3D4E5F6::account_123", "user@example.com", "team-work", .pro);
+    try appendAccount(gpa, &reg, "user-Z9Y8X7W6V5U4::518a44d9-ba75-4bad-87e5-ae9377042960", "other@example.com", "", .pro);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Ops Workspace");
 
     var alias_matches = try main_mod.findMatchingAccounts(gpa, &reg, "team-work");
@@ -310,7 +309,7 @@ test "Scenario: Given account_id query when finding matching accounts then it is
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, "user-A1B2C3D4E5F6::account_123", "user@example.com", "work", .team);
+    try appendAccount(gpa, &reg, "user-A1B2C3D4E5F6::account_123", "user@example.com", "work", .pro);
 
     var matches = try main_mod.findMatchingAccounts(gpa, &reg, "67fe2bbb");
     defer matches.deinit(gpa);
@@ -343,8 +342,8 @@ test "Scenario: Given switch query with one local match when resolving locally t
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, primary_record_key, "active@example.com", "primary", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "backup@example.com", "secondary", .plus);
+    try appendAccount(gpa, &reg, primary_record_key, "active@example.com", "primary", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "backup@example.com", "secondary", .pro);
 
     var resolution = try main_mod.resolveSwitchQueryLocally(gpa, &reg, "backup@");
     defer resolution.deinit(gpa);
@@ -360,8 +359,8 @@ test "Scenario: Given switch query with a display number when resolving locally 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, primary_record_key, "alpha@example.com", "alpha", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "beta@example.com", "beta", .plus);
+    try appendAccount(gpa, &reg, primary_record_key, "alpha@example.com", "alpha", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "beta@example.com", "beta", .pro);
 
     var resolution = try main_mod.resolveSwitchQueryLocally(gpa, &reg, "02");
     defer resolution.deinit(gpa);
@@ -377,8 +376,8 @@ test "Scenario: Given switch query with multiple local matches when resolving lo
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "team-a", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "team-b", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "team-a", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "team-b", .pro);
 
     var resolution = try main_mod.resolveSwitchQueryLocally(gpa, &reg, "team");
     defer resolution.deinit(gpa);
@@ -398,7 +397,7 @@ test "Scenario: Given api usage refresh for list and switch when refreshing fore
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     const TestUsageFetcher = struct {
@@ -431,7 +430,7 @@ test "Scenario: Given api usage refresh for list and switch when refreshing fore
 
             if (std.mem.eql(u8, account_id, primary_account_id)) {
                 return .{
-                    .snapshot = snapshot(.team, 18, 39),
+                    .snapshot = snapshot(.pro, 18, 39),
                     .status_code = 200,
                 };
             }
@@ -443,7 +442,7 @@ test "Scenario: Given api usage refresh for list and switch when refreshing fore
             }
             if (std.mem.eql(u8, account_id, tertiary_account_id)) {
                 return .{
-                    .snapshot = snapshot(.plus, 30, 55),
+                    .snapshot = snapshot(.pro, 30, 55),
                     .status_code = 200,
                 };
             }
@@ -456,12 +455,12 @@ test "Scenario: Given api usage refresh for list and switch when refreshing fore
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, tertiary_record_key, "user@example.com", "", .plus);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, tertiary_record_key, "user@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, primary_record_key);
 
-    reg.accounts.items[2].last_usage = TestUsageFetcher.snapshot(.plus, 30, 55);
+    reg.accounts.items[2].last_usage = TestUsageFetcher.snapshot(.pro, 30, 55);
     reg.accounts.items[2].last_usage_at = 10;
 
     try writeAccountSnapshotWithIds(gpa, gemini_home, "user@example.com", "team", shared_user_id, primary_account_id);
@@ -490,7 +489,7 @@ test "Scenario: Given api usage refresh for list and switch when refreshing fore
     try std.testing.expectEqual(@as(?u16, 403), state.outcomes[1].status_code);
     try std.testing.expect(state.outcomes[2].unchanged);
 
-    try std.testing.expectEqual(@as(?registry.PlanType, .team), reg.accounts.items[0].last_usage.?.plan_type);
+    try std.testing.expectEqual(@as(?registry.PlanType, .pro), reg.accounts.items[0].last_usage.?.plan_type);
     try std.testing.expectEqual(@as(f64, 18), reg.accounts.items[0].last_usage.?.primary.?.used_percent);
     try std.testing.expectEqual(@as(f64, 55), reg.accounts.items[2].last_usage.?.secondary.?.used_percent);
 }
@@ -528,7 +527,7 @@ test "Scenario: Given more than five foreground usage jobs when refreshing usage
         defer gpa.free(account_id);
         const record_key = try std.fmt.allocPrint(gpa, "{s}::{s}", .{ user_id, account_id });
         defer gpa.free(record_key);
-        try appendAccount(gpa, &reg, record_key, email, "", .team);
+        try appendAccount(gpa, &reg, record_key, email, "", .pro);
     }
 
     var state = try main_mod.refreshForegroundUsageForDisplayWithApiFetcherWithPoolInit(
@@ -550,7 +549,7 @@ test "Scenario: Given foreground usage returns response error code then status o
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     const TestUsageFetcher = struct {
@@ -574,7 +573,7 @@ test "Scenario: Given foreground usage returns response error code then status o
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
     try writeAccountSnapshotWithIds(gpa, gemini_home, "user@example.com", "team", shared_user_id, primary_account_id);
 
     var state = try main_mod.refreshForegroundUsageForDisplayWithApiFetcherWithPoolInit(
@@ -592,12 +591,7 @@ test "Scenario: Given foreground usage returns response error code then status o
 
 test "Scenario: Given long response error code then status override is truncated to quota display width" {
     const gpa = std.testing.allocator;
-    const code = usage_api.parseNonSuccessErrorCode(std.testing.allocator, 429,
-        \\{
-        \\  "error": {
-        \\    "code": "this_error_code_is_much_longer_than_the_usage_column"
-        \\  }
-        \\}
+    const code = usage_api.parseNonSuccessErrorCode(std.testing.allocator, 429);
     ) orelse return error.TestExpectedEqual;
     const text = try main_mod.formatStatusOverrideAlloc(gpa, 429, code);
     defer gpa.free(text);
@@ -611,7 +605,7 @@ test "Scenario: Given thread pool init failure when refreshing foreground usage 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     const TestUsageFetcher = struct {
@@ -644,7 +638,7 @@ test "Scenario: Given thread pool init failure when refreshing foreground usage 
 
             if (std.mem.eql(u8, account_id, primary_account_id)) {
                 return .{
-                    .snapshot = snapshot(.team, 22, 41),
+                    .snapshot = snapshot(.pro, 22, 41),
                     .status_code = 200,
                 };
             }
@@ -666,8 +660,8 @@ test "Scenario: Given thread pool init failure when refreshing foreground usage 
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, primary_record_key);
 
     try writeAccountSnapshotWithIds(gpa, gemini_home, "user@example.com", "team", shared_user_id, primary_account_id);
@@ -694,13 +688,13 @@ test "Scenario: Given list with missing team names when running foreground accou
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, primary_record_key);
     try writeActiveAuthWithIds(gpa, gemini_home, "user@example.com", "team", shared_user_id, primary_account_id);
 
@@ -723,13 +717,13 @@ test "Scenario: Given switch with missing team names when running foreground acc
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, primary_record_key);
     try writeActiveAuthWithIds(gpa, gemini_home, "user@example.com", "team", shared_user_id, primary_account_id);
 
@@ -752,11 +746,11 @@ test "Scenario: Given team name fetch candidates when checking grouped-account p
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, primary_record_key, "same-user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "same-user@example.com", "", .pro);
     try appendAccount(gpa, &reg, secondary_record_key, "same-user@example.com", "", .free);
-    try appendAccount(gpa, &reg, standalone_team_record_key, "solo-team@example.com", "", .team);
-    try appendAccount(gpa, &reg, "user-plus-only::acct-plus-a", "plus-only@example.com", "", .plus);
-    try appendAccount(gpa, &reg, "user-plus-only::acct-plus-b", "plus-only-alt@example.com", "", .plus);
+    try appendAccount(gpa, &reg, standalone_team_record_key, "solo-team@example.com", "", .pro);
+    try appendAccount(gpa, &reg, "user-plus-only::acct-plus-a", "plus-only@example.com", "", .pro);
+    try appendAccount(gpa, &reg, "user-plus-only::acct-plus-b", "plus-only-alt@example.com", "", .pro);
 
     try std.testing.expect(registry.shouldFetchTeamAccountNamesForUser(&reg, shared_user_id));
     try std.testing.expect(!registry.shouldFetchTeamAccountNamesForUser(&reg, standalone_team_user_id));
@@ -768,12 +762,12 @@ test "Scenario: Given a standalone team account when building display rows and r
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, standalone_team_record_key, "solo-team@example.com", "", .team);
+    try appendAccount(gpa, &reg, standalone_team_record_key, "solo-team@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, standalone_team_record_key);
     try writeActiveAuthWithIds(gpa, gemini_home, "solo-team@example.com", "team", standalone_team_user_id, standalone_team_account_id);
 
@@ -809,14 +803,14 @@ test "Scenario: Given grouped team accounts with account api disabled when refre
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
     reg.api.account = false;
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, primary_record_key);
     try writeActiveAuthWithIds(gpa, gemini_home, "user@example.com", "team", shared_user_id, primary_account_id);
 
@@ -846,8 +840,8 @@ test "Scenario: Given grouped team accounts with account api disabled when check
     defer reg.deinit(gpa);
     reg.api.account = false;
 
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, primary_record_key);
 
     try std.testing.expect(!main_mod.shouldScheduleBackgroundAccountNameRefresh(&reg));
@@ -858,12 +852,12 @@ test "Scenario: Given only another user has missing grouped team names when chec
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Primary Workspace");
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Backup Workspace");
-    try appendAccount(gpa, &reg, "user-OTHER::acct-OTHER-A", "other@example.com", "", .team);
-    try appendAccount(gpa, &reg, "user-OTHER::acct-OTHER-B", "other@example.com", "", .team);
+    try appendAccount(gpa, &reg, "user-OTHER::acct-OTHER-A", "other@example.com", "", .pro);
+    try appendAccount(gpa, &reg, "user-OTHER::acct-OTHER-B", "other@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, primary_record_key);
 
     try std.testing.expect(main_mod.shouldScheduleBackgroundAccountNameRefresh(&reg));
@@ -874,8 +868,8 @@ test "Scenario: Given login with missing account names when refreshing metadata 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
 
     var info = try parseAuthInfoWithIds(gpa, "user@example.com", "team", shared_user_id, primary_account_id);
     defer info.deinit(gpa);
@@ -894,13 +888,13 @@ test "Scenario: Given switched account with missing account names when refreshin
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, primary_record_key);
     try writeActiveAuthWithIds(gpa, gemini_home, "user@example.com", "team", shared_user_id, primary_account_id);
 
@@ -918,13 +912,13 @@ test "Scenario: Given api disabled while background account-name refresh is in f
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, primary_record_key);
     try registry.saveRegistry(gpa, gemini_home, &reg);
     try writeAccountSnapshotWithIds(gpa, gemini_home, "user@example.com", "team", shared_user_id, primary_account_id);
@@ -949,13 +943,13 @@ test "Scenario: Given grouped stored snapshots without active auth when running 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
     try registry.saveRegistry(gpa, gemini_home, &reg);
     try writeAccountSnapshotWithIds(gpa, gemini_home, "user@example.com", "team", shared_user_id, primary_account_id);
 
@@ -974,13 +968,13 @@ test "Scenario: Given grouped stored snapshots with multiple tokens when running
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
     try registry.saveRegistry(gpa, gemini_home, &reg);
     try writeAccountSnapshotWithIdsAndLastRefresh(
         gpa,
@@ -1019,15 +1013,15 @@ test "Scenario: Given grouped team names with only a stored plus snapshot for th
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ primary_account_id, "same-user@example.com", "", .team);
-    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ secondary_account_id, "same-user@example.com", "", .team);
+    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ primary_account_id, "same-user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ secondary_account_id, "same-user@example.com", "", .pro);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Old Backup Workspace");
-    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ tertiary_account_id, "same-user@example.com", "", .plus);
+    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ tertiary_account_id, "same-user@example.com", "", .pro);
     try registry.saveRegistry(gpa, gemini_home, &reg);
     try writeAccountSnapshotWithIds(gpa, gemini_home, "same-user@example.com", "plus", shared_user_id, tertiary_account_id);
 
@@ -1047,8 +1041,8 @@ test "Scenario: Given single-file import with missing account names when refresh
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
 
     var info = try parseAuthInfoWithIds(gpa, "user@example.com", "team", shared_user_id, primary_account_id);
     defer info.deinit(gpa);
@@ -1064,8 +1058,8 @@ test "Scenario: Given directory import or purge when refreshing account names th
     var reg = makeRegistry();
     defer reg.deinit(gpa);
 
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
 
     var info = try parseAuthInfoWithIds(gpa, "user@example.com", "team", shared_user_id, primary_account_id);
     defer info.deinit(gpa);
@@ -1084,16 +1078,16 @@ test "Scenario: Given list refresh when only other users have missing account na
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Primary Workspace");
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Backup Workspace");
-    try appendAccount(gpa, &reg, "user-OTHER::acct-OTHER", "other@example.com", "", .team);
+    try appendAccount(gpa, &reg, "user-OTHER::acct-OTHER", "other@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, primary_record_key);
     try writeActiveAuthWithIds(gpa, gemini_home, "user@example.com", "team", shared_user_id, primary_account_id);
 
@@ -1107,14 +1101,14 @@ test "Scenario: Given list refresh with missing active-user account names when r
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .team);
-    try appendAccount(gpa, &reg, "user-OTHER::acct-OTHER", "other@example.com", "", .team);
+    try appendAccount(gpa, &reg, primary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, secondary_record_key, "user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, "user-OTHER::acct-OTHER", "other@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, primary_record_key);
     try writeActiveAuthWithIds(gpa, gemini_home, "user@example.com", "team", shared_user_id, primary_account_id);
 
@@ -1136,15 +1130,15 @@ test "Scenario: Given list refresh with team names missing under the same user w
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
     defer reg.deinit(gpa);
-    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ primary_account_id, "same-user@example.com", "", .team);
-    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ secondary_account_id, "same-user@example.com", "", .team);
+    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ primary_account_id, "same-user@example.com", "", .pro);
+    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ secondary_account_id, "same-user@example.com", "", .pro);
     reg.accounts.items[1].account_name = try gpa.dupe(u8, "Old Backup Workspace");
-    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ tertiary_account_id, "same-user@example.com", "", .plus);
+    try appendAccount(gpa, &reg, shared_user_id ++ "::" ++ tertiary_account_id, "same-user@example.com", "", .pro);
     try registry.setActiveAccountKey(gpa, &reg, shared_user_id ++ "::" ++ tertiary_account_id);
     try writeActiveAuthWithIds(gpa, gemini_home, "same-user@example.com", "plus", shared_user_id, tertiary_account_id);
 
@@ -1167,7 +1161,7 @@ test "Scenario: Given removed active account with remaining accounts when reconc
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -1177,21 +1171,21 @@ test "Scenario: Given removed active account with remaining accounts when reconc
     defer gpa.free(alpha_key);
     const gamma_key = try fixtures.accountKeyForEmailAlloc(gpa, "gamma@example.com");
     defer gpa.free(gamma_key);
-    try appendAccount(gpa, &reg, alpha_key, "alpha@example.com", "", .plus);
-    try appendAccount(gpa, &reg, gamma_key, "gamma@example.com", "", .team);
+    try appendAccount(gpa, &reg, alpha_key, "alpha@example.com", "", .pro);
+    try appendAccount(gpa, &reg, gamma_key, "gamma@example.com", "", .pro);
 
     const now = std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds();
     reg.accounts.items[0].last_usage = .{
         .primary = .{ .used_percent = 100, .window_minutes = 300, .resets_at = now + 3600 },
         .secondary = null,
         .credits = null,
-        .plan_type = .plus,
+        .plan_type = .pro,
     };
     reg.accounts.items[1].last_usage = .{
         .primary = .{ .used_percent = 0, .window_minutes = 300, .resets_at = now + 3600 },
         .secondary = null,
         .credits = null,
-        .plan_type = .team,
+        .plan_type = .pro,
     };
 
     try writeSnapshot(gpa, gemini_home, "alpha@example.com", "plus");
@@ -1220,7 +1214,7 @@ test "Scenario: Given stale active key with remaining accounts when reconciling 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -1230,8 +1224,8 @@ test "Scenario: Given stale active key with remaining accounts when reconciling 
     defer gpa.free(alpha_key);
     const gamma_key = try fixtures.accountKeyForEmailAlloc(gpa, "gamma@example.com");
     defer gpa.free(gamma_key);
-    try appendAccount(gpa, &reg, alpha_key, "alpha@example.com", "", .plus);
-    try appendAccount(gpa, &reg, gamma_key, "gamma@example.com", "", .team);
+    try appendAccount(gpa, &reg, alpha_key, "alpha@example.com", "", .pro);
+    try appendAccount(gpa, &reg, gamma_key, "gamma@example.com", "", .pro);
     reg.active_account_key = try gpa.dupe(u8, "user-stale::acct-stale");
     reg.active_account_activated_at_ms = 1;
 
@@ -1240,13 +1234,13 @@ test "Scenario: Given stale active key with remaining accounts when reconciling 
         .primary = .{ .used_percent = 100, .window_minutes = 300, .resets_at = now + 3600 },
         .secondary = null,
         .credits = null,
-        .plan_type = .plus,
+        .plan_type = .pro,
     };
     reg.accounts.items[1].last_usage = .{
         .primary = .{ .used_percent = 0, .window_minutes = 300, .resets_at = now + 3600 },
         .secondary = null,
         .credits = null,
-        .plan_type = .team,
+        .plan_type = .pro,
     };
 
     try writeSnapshot(gpa, gemini_home, "alpha@example.com", "plus");
@@ -1275,7 +1269,7 @@ test "Scenario: Given no remaining accounts when reconciling after remove then a
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeRegistry();
@@ -1297,7 +1291,7 @@ test "Scenario: Given newer registry schema when loading help config then defaul
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
     try tmp.dir.writeFile(.{

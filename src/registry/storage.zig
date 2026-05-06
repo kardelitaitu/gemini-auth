@@ -110,7 +110,7 @@ fn parseLegacyAccountRecord(allocator: std.mem.Allocator, obj: std.json.ObjectMa
 
     if (obj.get("plan")) |p| {
         switch (p) {
-            .string => |s| rec.plan = parsePlanType(s),
+            .string => |s| rec.plan = parse.parsePlanType(s),
             else => {},
         }
     }
@@ -202,7 +202,8 @@ fn migrateLegacyRecord(
         .email = try allocator.dupe(u8, legacy.email),
         .alias = try allocator.dupe(u8, legacy.alias),
         .name = null,
-        .plan = info.plan orelse legacy.plan,
+        .account_name = null,
+        .plan = legacy.plan,
         .created_at = legacy.created_at,
         .last_used_at = legacy.last_used_at,
         .last_usage = legacy.last_usage,
@@ -295,7 +296,7 @@ fn loadLegacyRegistryV2(
         parseAutoSwitch(allocator, &reg.auto_switch, v);
     }
     if (root_obj.get("api")) |v| {
-        parseApiConfig(&reg.api, v);
+        reg.api = try parseApiConfig(allocator, v);
     }
     if (root_obj.get("live")) |v| {
         parseLiveConfig(&reg.live, v);
@@ -345,7 +346,7 @@ fn loadCurrentRegistry(allocator: std.mem.Allocator, root_obj: std.json.ObjectMa
         parseAutoSwitch(allocator, &reg.auto_switch, v);
     }
     if (root_obj.get("api")) |v| {
-        parseApiConfig(&reg.api, v);
+        reg.api = try parseApiConfig(allocator, v);
     }
     if (root_obj.get("live")) |v| {
         parseLiveConfig(&reg.live, v);

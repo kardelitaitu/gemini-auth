@@ -36,7 +36,7 @@ test "parse usage api response without windows is ignored" {
         \\}
     ;
 
-    const snapshot = usage_api.parseUsageResponse(gpa, body);
+    const snapshot = try usage_api.parseUsageResponse(gpa, body);
     try std.testing.expect(snapshot == null);
 }
 
@@ -86,7 +86,7 @@ test "parse invalid json returns null" {
     const gpa = std.testing.allocator;
 
     const body = "not json";
-    const snapshot = usage_api.parseUsageResponse(gpa, body);
+    const snapshot = try usage_api.parseUsageResponse(gpa, body);
     try std.testing.expect(snapshot == null);
 }
 

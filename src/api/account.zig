@@ -38,7 +38,7 @@ pub fn fetchAccountsForToken(
     return try parseAccountsResponse(allocator, http_result.body);
 }
 
-fn parseAccountsResponse(allocator: std.mem.Allocator, body: []const u8) !?[]AccountEntry {
+pub fn parseAccountsResponse(allocator: std.mem.Allocator, body: []const u8) !?[]AccountEntry {
     var parsed = std.json.parseFromSlice(std.json.Value, allocator, body, .{}) catch return null;
     defer parsed.deinit();
 
@@ -46,8 +46,9 @@ fn parseAccountsResponse(allocator: std.mem.Allocator, body: []const u8) !?[]Acc
         .object => |obj| obj,
         else => return null,
     };
+    _ = root;
 
-    var entries = std.ArrayList(AccountEntry).init(allocator);
+    var entries = std.ArrayList(AccountEntry).initCapacity(allocator, 10);
     errdefer {
         for (entries.items) |*entry| entry.deinit(allocator);
         entries.deinit();
@@ -56,5 +57,12 @@ fn parseAccountsResponse(allocator: std.mem.Allocator, body: []const u8) !?[]Acc
     // TBD: Parse actual Gemini API response format
     // For now, return empty list since Gemini doesn't have team accounts like OpenAI
 
-    return entries.toOwnedSlice();
+    return @as(?[]AccountEntry, try entries.toOwnedSlice());
+}
+
+pub fn fetchAccounts(allocator: std.mem.Allocator, gemini_home: []const u8) !?AccountEntry {
+    _ = allocator;
+    _ = gemini_home;
+    // TBD: Implement Gemini account fetching
+    return null;
 }

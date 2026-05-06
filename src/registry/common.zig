@@ -109,6 +109,7 @@ pub const AccountRecord = struct {
     email: []u8,
     alias: []u8,
     name: ?[]u8,
+    account_name: ?[]u8,  // For backward compatibility with tests
     plan: ?PlanType,
     created_at: i64,
     last_used_at: ?i64,

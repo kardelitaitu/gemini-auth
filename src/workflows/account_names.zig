@@ -4,7 +4,8 @@ const auth = @import("../auth/auth.zig");
 const registry = @import("../registry/root.zig");
 const account_api = @import("../api/account.zig");
 const account_name_refresh = @import("../auth/account.zig");
-const logging = @import("logging.zig");
+const logging = @import("../auto/logging.zig");
+const cli = @import("../cli/root.zig");
 
 const emitDaemonLog = logging.emitDaemonLog;
 const fieldSeparator = logging.fieldSeparator;
@@ -52,10 +53,13 @@ pub fn shouldRefreshTeamAccountNamesForUser(
     return false;
 }
 
+pub const defaultAccountFetcher = account_api.fetchAccounts;
+
 pub fn collectCandidates(
     allocator: std.mem.Allocator,
     reg: *registry.Registry,
 ) !std.ArrayList(account_name_refresh.Candidate) {
+    _ = reg;
     var candidates = std.ArrayList(account_name_refresh.Candidate).empty;
     errdefer {
         for (candidates.items) |*candidate| candidate.deinit(allocator);
@@ -111,6 +115,30 @@ pub fn refreshAccountNamesAfterSwitch(
     return false;
 }
 
+pub fn refreshAccountNamesAfterImport(
+    allocator: std.mem.Allocator,
+    gemini_home: []const u8,
+    reg: *registry.Registry,
+    fetcher: AccountFetchFn,
+) !bool {
+    _ = allocator;
+    _ = gemini_home;
+    _ = reg;
+    _ = fetcher;
+    // Gemini doesn't have team accounts like OpenAI
+    return false;
+}
+
+pub fn shouldScheduleBackgroundAccountNameRefresh(
+    reg: *registry.Registry,
+    target: anytype,
+) bool {
+    _ = reg;
+    _ = target;
+    // Gemini doesn't have team accounts like OpenAI
+    return false;
+}
+
 pub fn refreshAccountNamesForList(
     allocator: std.mem.Allocator,
     gemini_home: []const u8,
@@ -161,4 +189,42 @@ pub fn runBackgroundAccountNameRefreshWithLockAcquirer(
     _ = fetcher;
     _ = lock_acquirer;
     // Gemini doesn't have team accounts like OpenAI
+}
+
+pub fn maybeRefreshForegroundAccountNamesWithAccountApiEnabled(
+    allocator: std.mem.Allocator,
+    gemini_home: []const u8,
+    reg: *registry.Registry,
+    target: anytype,
+    fetcher: AccountFetchFn,
+    account_api_enabled: bool,
+) !bool {
+    _ = allocator;
+    _ = gemini_home;
+    _ = reg;
+    _ = target;
+    _ = fetcher;
+    _ = account_api_enabled;
+    // Gemini doesn't have team accounts like OpenAI
+    return false;
+}
+
+pub fn maybeRefreshForegroundAccountNamesWithAccountApiEnabledAndPersist(
+    allocator: std.mem.Allocator,
+    gemini_home: []const u8,
+    reg: *registry.Registry,
+    target: anytype,
+    fetcher: AccountFetchFn,
+    account_api_enabled: bool,
+    persist: bool,
+) !bool {
+    _ = allocator;
+    _ = gemini_home;
+    _ = reg;
+    _ = target;
+    _ = fetcher;
+    _ = account_api_enabled;
+    _ = persist;
+    // Gemini doesn't have team accounts like OpenAI
+    return false;
 }

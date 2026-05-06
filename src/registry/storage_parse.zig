@@ -36,6 +36,7 @@ pub fn parseAccountRecord(allocator: std.mem.Allocator, obj: std.json.ObjectMap)
         .email = try normalizeEmailAlloc(allocator, email),
         .alias = try allocator.dupe(u8, alias),
         .name = try parseOptionalStoredStringAlloc(allocator, obj.get("name")),
+        .account_name = try parseOptionalStoredStringAlloc(allocator, obj.get("account_name")),
         .plan = null,
         .created_at = readInt(obj.get("created_at")) orelse std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds(),
         .last_used_at = readInt(obj.get("last_used_at")),
@@ -47,7 +48,7 @@ pub fn parseAccountRecord(allocator: std.mem.Allocator, obj: std.json.ObjectMap)
 
     if (obj.get("plan")) |p| {
         switch (p) {
-            .string => |s| rec.plan = parsePlanType(s),
+            .string => |s| rec.plan = parse.parsePlanType(s),
             else => {},
         }
     }

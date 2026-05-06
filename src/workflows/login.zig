@@ -18,9 +18,11 @@ pub fn handleLogin(allocator: std.mem.Allocator, gemini_home: []const u8, opts: 
     var reg = try registry.loadRegistry(allocator, gemini_home);
     defer reg.deinit(allocator);
 
-    const email = info.email orelse return error.MissingEmail;
-    _ = email;
-    const record_key = info.record_key orelse return error.MissingChatgptUserId;
+    const google_user_id = info.google_user_id orelse return error.MissingGoogleUserId;
+
+    // For Gemini, create record key from google_user_id
+    const record_key = try allocator.dupe(u8, google_user_id);
+    defer allocator.free(record_key);
     const dest = try registry.accountAuthPath(allocator, gemini_home, record_key);
     defer allocator.free(dest);
 
@@ -30,6 +32,6 @@ pub fn handleLogin(allocator: std.mem.Allocator, gemini_home: []const u8, opts: 
     const record = try registry.accountFromAuth(allocator, "", &info);
     try registry.upsertAccount(allocator, &reg, record);
     try registry.setActiveAccountKey(allocator, &reg, record_key);
-    _ = try refreshAccountNamesAfterLogin(allocator, &reg, &info, defaultAccountFetcher);
+    _ = try refreshAccountNamesAfterLogin(allocator, gemini_home, &reg, defaultAccountFetcher);
     try registry.saveRegistry(allocator, gemini_home, &reg);
 }

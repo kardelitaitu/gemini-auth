@@ -325,8 +325,9 @@ pub fn applyAccountNamesForUser(
     google_user_id: []const u8,
     entries: []const account_api.AccountEntry,
 ) !bool {
+    _ = allocator;
     _ = entries;
-    var changed = false;
+    const changed = false;
     for (reg.accounts.items) |*rec| {
         if (!inAccountNameRefreshScope(reg, google_user_id, rec)) continue;
         // Simplified for Gemini - no account_name refresh needed
@@ -397,6 +398,7 @@ pub fn accountFromAuth(
         .email = owned_email,
         .alias = owned_alias,
         .name = owned_name,
+        .account_name = null,
         .plan = null, // Gemini doesn't expose plan in auth token
         .created_at = std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds(),
         .last_used_at = null,

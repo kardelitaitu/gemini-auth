@@ -59,6 +59,7 @@ pub fn collectCandidates(
     allocator: std.mem.Allocator,
     reg: *registry.Registry,
 ) !std.ArrayList(Candidate) {
+    _ = reg;
     var candidates = std.ArrayList(Candidate).empty;
     errdefer {
         for (candidates.items) |*candidate| candidate.deinit(allocator);
@@ -97,4 +98,9 @@ pub fn loadStoredAuthInfoForUser(
     }
 
     return best_info;
+}
+
+fn considerStoredAuthInfoForRefresh(allocator: std.mem.Allocator, best_info: *?auth.AuthInfo, info: auth.AuthInfo) void {
+    if (best_info.*) |*old| old.deinit(allocator);
+    best_info.* = info;
 }

@@ -13,13 +13,11 @@ fn makeStoredAuthInfoForTest(
 ) !auth.AuthInfo {
     return .{
         .email = null,
-        .google_user_id = if (google_user_id) |account_id| try allocator.dupe(u8, account_id) else null,
         .google_user_id = try allocator.dupe(u8, "user-1"),
         .record_key = null,
         .access_token = try allocator.dupe(u8, access_token),
         .last_refresh = try allocator.dupe(u8, last_refresh),
-        .plan = null,
-        .plan = .chatgpt,
+        .plan = .free,
     };
 }
 

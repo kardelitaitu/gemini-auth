@@ -13,7 +13,7 @@ pub const UsageBatchFetchDetailedFn = *const fn (
     allocator: std.mem.Allocator,
     auth_paths: []const []const u8,
     max_concurrency: usize,
-) anyerror![]usage_api.BatchUsageFetchResult;
+) anyerror!usage_api.BatchUsageFetchResult;
 pub const ForegroundUsagePoolInitFn = *const fn (
     allocator: std.mem.Allocator,
     n_jobs: usize,

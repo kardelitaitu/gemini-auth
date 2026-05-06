@@ -12,6 +12,13 @@ const RolloutSignature = common.RolloutSignature;
 const CreditsSnapshot = common.CreditsSnapshot;
 const defaultApiConfig = common.defaultApiConfig;
 
+pub fn parseApiConfig(allocator: std.mem.Allocator, v: std.json.Value) !common.ApiConfig {
+    _ = allocator;
+    _ = v;
+    // TBD: Parse API config
+    return common.defaultApiConfig();
+}
+
 pub fn parsePlanType(s: []const u8) ?PlanType {
     if (std.mem.eql(u8, s, "free")) return .free;
     if (std.mem.eql(u8, s, "pro")) return .pro;

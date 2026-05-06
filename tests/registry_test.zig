@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const fs = @import("gemini_auth").core.compat_fs;
+const app_runtime = @import("gemini_auth").core.runtime;
 const account_api = @import("gemini_auth").api.account;
 const registry = @import("gemini_auth").registry;
 const fixtures = @import("support/fixtures.zig");
@@ -27,13 +28,14 @@ fn makeAccountRecord(
     // For Gemini, use email-derived google_user_id
     const google_user_id = try allocator.dupe(u8, email); // Simplified - in reality this would be the Google user ID
     errdefer allocator.free(google_user_id);
-    
+
     return .{
         .account_key = try allocator.dupe(u8, google_user_id),
         .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, alias),
         .name = null,
+        .account_name = null,
         .plan = plan,
         .created_at = created_at,
         .last_used_at = null,
@@ -49,9 +51,9 @@ fn setRecordIds(
     google_user_id: []const u8,
 ) !void {
     allocator.free(rec.google_user_id);
-    rec.google_user_id = try allocator.dupe(u8, google_user_id);
+    rec.google_user_id = try gpa.dupe(u8, google_user_id);
     allocator.free(rec.account_key);
-    rec.account_key = try allocator.dupe(u8, google_user_id);
+    rec.account_key = try gpa.dupe(u8, google_user_id);
 }
 
 test "resolveGeminiHomeFromEnv prefers GEMINI_HOME over HOME" {
@@ -60,7 +62,7 @@ test "resolveGeminiHomeFromEnv prefers GEMINI_HOME over HOME" {
     defer tmp.cleanup();
 
     try tmp.dir.makePath("custom-gemini");
-    const custom_gemini_home = try tmp.dir.realpathAlloc(gpa, "custom-gemini");
+    const custom_gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner.inner, "custom-gemini");
     defer gpa.free(custom_gemini_home);
 
     const resolved = try registry.resolveGeminiHomeFromEnv(
@@ -79,7 +81,7 @@ test "resolveGeminiHomeFromEnv rejects a missing GEMINI_HOME override" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const missing = try tmp.dir.realpathAlloc(gpa, ".");
+    const missing = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(missing);
     const missing_path = try fs.path.join(gpa, &[_][]const u8{ missing, "missing-gemini-home" });
     defer gpa.free(missing_path);
@@ -96,7 +98,7 @@ test "resolveGeminiHomeFromEnv rejects a file GEMINI_HOME override" {
     defer tmp.cleanup();
 
     try tmp.dir.writeFile(.{ .sub_path = "gemini-home.txt", .data = "not a directory" });
-    const file_path = try tmp.dir.realpathAlloc(gpa, "gemini-home.txt");
+    const file_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "gemini-home.txt");
     defer gpa.free(file_path);
 
     try std.testing.expectError(
@@ -169,7 +171,7 @@ fn expectBackupNameFormat(name: []const u8, prefix: []const u8) !void {
     }
 
     if (stamp.len == 15 and stamp[8] == '-') {
-        for (stamp) |ch, i| {
+        for (0.., stamp) |i, ch| {
             if (i == 8) continue;
             try std.testing.expect(std.ascii.isDigit(ch));
         }
@@ -198,7 +200,7 @@ test "registry save/load" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -207,7 +209,7 @@ test "registry save/load" {
 
     const rec = try makeAccountRecord(gpa, "a@b.com", "work", .pro, 1);
     try reg.accounts.append(gpa, rec);
-    const active_account_key = try allocator.dupe(u8, "a@b.com");
+    const active_account_key = try gpa.dupe(u8, "a@b.com");
     defer gpa.free(active_account_key);
     try registry.setActiveAccountKey(gpa, &reg, active_account_key);
     reg.auto_switch.threshold_5h_percent = 12;
@@ -242,7 +244,7 @@ test "plan labels are human-readable while registry stores raw plan values" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -269,17 +271,17 @@ test "resolveDisplayPlan prefers a usage snapshot plan over the stored auth plan
     var reg = makeEmptyRegistry();
     defer reg.deinit(gpa);
 
-    var rec = try makeAccountRecord(gpa, "display@example.com", "", .plus, 1);
+    var rec = try makeAccountRecord(gpa, "display@example.com", "", .pro, 1);
     rec.last_usage = .{
         .primary = null,
         .secondary = null,
         .credits = null,
-        .plan_type = .team,
+        .plan_type = .pro,
     };
     try reg.accounts.append(gpa, rec);
 
-    try std.testing.expectEqual(registry.PlanType.plus, registry.resolvePlan(&reg.accounts.items[0]).?);
-    try std.testing.expectEqual(registry.PlanType.team, registry.resolveDisplayPlan(&reg.accounts.items[0]).?);
+    try std.testing.expectEqual(registry.PlanType.pro, registry.resolvePlan(&reg.accounts.items[0]).?);
+    try std.testing.expectEqual(registry.PlanType.pro, registry.resolveDisplayPlan(&reg.accounts.items[0]).?);
 }
 
 test "registry load defaults missing account_name field to null" {
@@ -287,7 +289,7 @@ test "registry load defaults missing account_name field to null" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -325,7 +327,7 @@ test "registry save/load round-trips account_name null" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -352,7 +354,7 @@ test "registry save/load round-trips account_name string" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -383,7 +385,7 @@ test "registry save/load round-trips api.account false" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -406,7 +408,7 @@ test "registry load defaults missing auto threshold fields" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -446,7 +448,7 @@ test "registry load migrates old auto thresholds to default one percent" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -486,7 +488,7 @@ test "registry load backfills missing api.account from api.usage and rewrites fi
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -522,7 +524,7 @@ test "registry load backfills missing api.usage from api.account and rewrites fi
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -558,7 +560,7 @@ test "legacy schema registry with legacy rollout attribution rewrites to normali
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -607,7 +609,7 @@ test "legacy current-layout registry version field rewrites to schema_version" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -642,7 +644,7 @@ test "too-new schema version is rejected without rewriting registry" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -671,7 +673,7 @@ test "v2 registry migrates active email records to current schema" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -701,7 +703,7 @@ test "v2 registry migrates active email records to current schema" {
     try std.testing.expect(loaded.accounts.items.len == 1);
     try std.testing.expect(loaded.active_account_key != null);
 
-    const expected_account_key = try allocator.dupe(u8, "legacy@example.com"); // Simplified for test
+    const expected_account_key = try gpa.dupe(u8, "legacy@example.com"); // Simplified for test
     defer gpa.free(expected_account_key);
     try std.testing.expect(std.mem.eql(u8, loaded.active_account_key.?, expected_account_key));
 
@@ -713,7 +715,7 @@ test "ensureAccountsDir hardens accounts directory without changing gemini home 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const tmp_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const tmp_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(tmp_root);
     try tmp.dir.makePath("gemini-home");
 
@@ -735,7 +737,7 @@ test "copyManagedFile creates destination with 0600 regardless of source mode" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     try tmp.dir.writeFile(.{ .sub_path = "source.json", .data = "secret" });
@@ -755,7 +757,7 @@ test "saveRegistry creates registry.json with 0600 on first write" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeEmptyRegistry();
@@ -773,7 +775,7 @@ test "saveRegistry hardens registry.json to 0600 even when contents are unchange
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeEmptyRegistry();
@@ -796,7 +798,7 @@ test "auth backup only on change" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     const current = try fs.path.join(gpa, &[_][]const u8{ gemini_home, "oauth_creds.json" });
@@ -827,7 +829,7 @@ test "auth backup rotation" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     const current = try fs.path.join(gpa, &[_][]const u8{ gemini_home, "oauth_creds.json" });
@@ -856,7 +858,7 @@ test "sync active auth leaves oauth_creds.json permissions unchanged while harde
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -872,7 +874,7 @@ test "sync active auth leaves oauth_creds.json permissions unchanged while harde
     defer gpa.free(active_auth);
     try tmp.dir.writeFile(.{ .sub_path = "oauth_creds.json", .data = active_auth });
 
-    const account_key = try allocator.dupe(u8, "user@example.com");
+    const account_key = try gpa.dupe(u8, "user@example.com");
     defer gpa.free(account_key);
     const snapshot_path = try registry.accountAuthPath(gpa, gemini_home, account_key);
     defer gpa.free(snapshot_path);
@@ -897,7 +899,7 @@ test "replaceActiveAuthWithAccountByKey preserves existing oauth_creds.json perm
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -913,7 +915,7 @@ test "replaceActiveAuthWithAccountByKey preserves existing oauth_creds.json perm
     defer gpa.free(account_auth);
     try tmp.dir.writeFile(.{ .sub_path = "oauth_creds.json", .data = "old" });
 
-    const account_key = try allocator.dupe(u8, "user@example.com");
+    const account_key = try gpa.dupe(u8, "user@example.com");
     defer gpa.free(account_key);
     const snapshot_path = try registry.accountAuthPath(gpa, gemini_home, account_key);
     defer gpa.free(snapshot_path);
@@ -932,7 +934,7 @@ test "activateAccountByKey preserves snapshot permissions when oauth_creds.json 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -948,7 +950,7 @@ test "activateAccountByKey preserves snapshot permissions when oauth_creds.json 
     defer gpa.free(account_auth);
     try tmp.dir.writeFile(.{ .sub_path = "oauth_creds.json", .data = "old" });
 
-    const account_key = try allocator.dupe(u8, "user@example.com");
+    const account_key = try gpa.dupe(u8, "user@example.com");
     defer gpa.free(account_key);
     const snapshot_path = try registry.accountAuthPath(gpa, gemini_home, account_key);
     defer gpa.free(snapshot_path);
@@ -973,7 +975,7 @@ test "sync active auth matches by google_user_id and updates account auth" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -993,7 +995,7 @@ test "sync active auth matches by google_user_id and updates account auth" {
     try std.testing.expect(reg.accounts.items.len == 1);
     try std.testing.expect(std.mem.eql(u8, reg.accounts.items[0].email, "user@example.com"));
 
-    const account_key = try allocator.dupe(u8, "user@example.com");
+    const account_key = try gpa.dupe(u8, "user@example.com");
     defer gpa.free(account_key);
     const acc_path = try registry.accountAuthPath(gpa, gemini_home, account_key);
     defer gpa.free(acc_path);
@@ -1009,7 +1011,7 @@ test "registry backup only on change" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeEmptyRegistry();
@@ -1043,7 +1045,7 @@ test "registry backup rotation" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
 
     var reg = makeEmptyRegistry();
@@ -1071,7 +1073,7 @@ test "clean uses a whitelist and only removes non-current files under accounts" 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -1102,7 +1104,7 @@ test "clean uses a whitelist and only removes non-current files under accounts" 
     try std.testing.expect(summary.registry_backups_removed == 2);
     try std.testing.expect(summary.stale_snapshot_files_removed == 3);
 
-    accounts = try tmp.dir.openDir("accounts", .{ .iterate = true });
+    var accounts = try tmp.dir.openDir("accounts", .{ .iterate = true });
     defer accounts.close();
     try std.testing.expect(try countBackups(accounts, "oauth_creds.json") == 0);
 

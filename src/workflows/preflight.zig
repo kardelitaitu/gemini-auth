@@ -1,4 +1,5 @@
 const std = @import("std");
+const app_runtime = @import("../core/runtime.zig");
 const cli = @import("../cli/root.zig");
 const registry = @import("../registry/root.zig");
 const account_names = @import("account_names.zig");
@@ -7,6 +8,12 @@ const workflow_env = @import("env.zig");
 
 const skip_service_reconcile_env = workflow_env.skip_service_reconcile_env;
 const hasNonEmptyEnvVar = workflow_env.hasNonEmptyEnvVar;
+
+pub fn ensureLiveTty(target: LiveTtyTarget) !void {
+    const stdin_tty = std.Io.File.stdin().isTty(app_runtime.io()) catch false;
+    const stdout_tty = std.Io.File.stdout().isTty(app_runtime.io()) catch false;
+    if (liveTtyPreflightError(target, stdin_tty, stdout_tty)) |err| return err;
+}
 const ForegroundUsageRefreshTarget = targets.ForegroundUsageRefreshTarget;
 const LiveTtyTarget = targets.LiveTtyTarget;
 const liveTtyPreflightError = targets.liveTtyPreflightError;
@@ -39,32 +46,7 @@ const resolveSwitchQueryLocally = targets.resolveSwitchQueryLocally;
 const findMatchingAccounts = targets.findMatchingAccounts;
 const findMatchingAccountsForRemove = targets.findMatchingAccountsForRemove;
 const findAccountIndexByDisplayNumber = targets.findAccountIndexByDisplayNumber;
-const isHandledCliError = preflight.isHandledCliError;
-const shouldReconcileManagedService = preflight.shouldReconcileManagedService;
-const ensureLiveTty = preflight.ensureLiveTty;
-const apiModeUsesApi = preflight.apiModeUsesApi;
-const ensureForegroundNodeAvailableWithApiEnabled = preflight.ensureForegroundNodeAvailableWithApiEnabled;
-const switch_live_default_refresh_interval_ms = preflight.switch_live_default_refresh_interval_ms;
-const SwitchLiveRefreshPolicy = preflight.SwitchLiveRefreshPolicy;
-const SwitchLiveRuntime = preflight.SwitchLiveRuntime;
-const switchLiveRuntimeMaybeStartRefresh = preflight.switchLiveRuntimeMaybeStartRefresh;
-const switchLiveRuntimeMaybeTakeUpdatedDisplay = preflight.switchLiveRuntimeMaybeTakeUpdatedDisplay;
-const switchLiveRuntimeBuildStatusLine = preflight.switchLiveRuntimeBuildStatusLine;
-const findAccountIndexByAccountKeyConst = preflight.findAccountIndexByAccountKeyConst;
-const replaceOptionalOwnedString = preflight.replaceOptionalOwnedString;
-const mapSwitchUsageOverridesToLatest = preflight.mapSwitchUsageOverridesToLatest;
-const mergeSwitchLiveRefreshIntoLatest = preflight.mergeSwitchLiveRefreshIntoLatest;
-const buildSwitchLiveActionDisplay = preflight.buildSwitchLiveActionDisplay;
-const buildRemoveLiveActionDisplay = preflight.buildRemoveLiveActionDisplay;
-const loadStoredSwitchSelectionDisplay = preflight.loadStoredSwitchSelectionDisplay;
-const loadStoredSwitchSelectionDisplayWithRefreshError = preflight.loadStoredSwitchSelectionDisplayWithRefreshError;
-const loadInitialLiveSelectionDisplay = preflight.loadInitialLiveSelectionDisplay;
-const loadSwitchSelectionDisplay = preflight.loadSwitchSelectionDisplay;
-const removeSelectedAccountsAndPersist = preflight.removeSelectedAccountsAndPersist;
-const switchLiveRuntimeApplySelection = preflight.switchLiveRuntimeApplySelection;
-const removeLiveRuntimeApplySelection = preflight.removeLiveRuntimeApplySelection;
-const HelpConfig = help_workflow.HelpConfig;
-const loadHelpConfig = help_workflow.loadHelpConfig;
+
 
 pub fn isHandledCliError(err: anyerror) bool {
     return err == error.AccountNotFound or

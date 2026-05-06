@@ -75,17 +75,15 @@ fn appendTestAccount(
     plan: registry.PlanType,
 ) !void {
     const sep = std.mem.lastIndexOf(u8, record_key, "::") orelse return error.InvalidRecordKey;
-    const google_user_id = record_key[0..sep];
     const google_user_id = record_key[sep + 2 ..];
     try reg.accounts.append(allocator, .{
         .account_key = try allocator.dupe(u8, record_key),
         .google_user_id = try allocator.dupe(u8, google_user_id),
-        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, alias),
+        .name = null,
         .account_name = null,
         .plan = plan,
-        .plan = .chatgpt,
         .created_at = 1,
         .last_used_at = null,
         .last_usage = null,
@@ -103,7 +101,7 @@ fn appendNumberedTestAccount(
     defer allocator.free(record_key);
     const email = try std.fmt.allocPrint(allocator, "account-{d:0>3}@example.com", .{idx});
     defer allocator.free(email);
-    try appendTestAccount(allocator, reg, record_key, email, "", .team);
+    try appendTestAccount(allocator, reg, record_key, email, "", .pro);
 }
 
 fn testUsageSnapshot(now: i64, used_5h: f64, used_weekly: f64) registry.RateLimitSnapshot {
@@ -345,7 +343,7 @@ test "Scenario: Given a narrow live viewport when rendering then the account col
         "user-1::acc-1",
         "very-long-account-name-that-should-not-wrap@example.com",
         "",
-        .team,
+        .pro,
     );
     try appendTestAccount(
         gpa,
@@ -353,7 +351,7 @@ test "Scenario: Given a narrow live viewport when rendering then the account col
         "user-1::acc-2",
         "another-very-long-account-name-that-should-not-wrap@example.com",
         "",
-        .team,
+        .pro,
     );
 
     var rows = try buildSwitchRows(gpa, &reg);
@@ -853,7 +851,7 @@ test "Scenario: Given grouped accounts when rendering switch list then child row
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .pro);
     reg.accounts.items[0].account_name = try gpa.dupe(u8, "Als's Workspace");
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "user@example.com", "", .free);
 
@@ -875,7 +873,7 @@ test "Scenario: Given usage overrides when rendering switch list then failed row
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .pro);
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "user@example.com", "", .free);
 
     const usage_overrides = [_]?[]const u8{ null, "401" };
@@ -896,7 +894,7 @@ test "Scenario: Given usage overrides when selecting switch accounts then errore
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy@example.com", "", .pro);
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "failed@example.com", "", .free);
 
     const usage_overrides = [_]?[]const u8{ null, "401" };
@@ -913,9 +911,9 @@ test "Scenario: Given live switch navigation shortcuts when an account is unavai
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy-a@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy-a@example.com", "", .pro);
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "failed@example.com", "", .free);
-    try appendTestAccount(gpa, &reg, "user-1::acc-3", "healthy-b@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-3", "healthy-b@example.com", "", .pro);
 
     const usage_overrides = [_]?[]const u8{ null, "401", null };
     var rows = try buildSwitchRowsWithUsageOverrides(gpa, &reg, &usage_overrides);
@@ -945,9 +943,9 @@ test "Scenario: Given active usage at threshold when picking a live auto-switch 
 
     const now = std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds();
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .team);
-    try appendTestAccount(gpa, &reg, "user-1::acc-2", "backup-a@example.com", "", .team);
-    try appendTestAccount(gpa, &reg, "user-1::acc-3", "backup-b@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .pro);
+    try appendTestAccount(gpa, &reg, "user-1::acc-2", "backup-a@example.com", "", .pro);
+    try appendTestAccount(gpa, &reg, "user-1::acc-3", "backup-b@example.com", "", .pro);
     reg.active_account_key = try gpa.dupe(u8, "user-1::acc-1");
     reg.accounts.items[0].last_usage = testUsageSnapshotWithResets(now, 99, 10, 3600, 7 * 24 * 3600);
     reg.accounts.items[1].last_usage = testUsageSnapshotWithResets(now, 5, 5, 30 * 60, 60 * 60);
@@ -974,9 +972,9 @@ test "Scenario: Given equal 5h resets when picking a live auto-switch target the
 
     const now = std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds();
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .team);
-    try appendTestAccount(gpa, &reg, "user-1::acc-2", "backup-a@example.com", "", .team);
-    try appendTestAccount(gpa, &reg, "user-1::acc-3", "backup-b@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .pro);
+    try appendTestAccount(gpa, &reg, "user-1::acc-2", "backup-a@example.com", "", .pro);
+    try appendTestAccount(gpa, &reg, "user-1::acc-3", "backup-b@example.com", "", .pro);
     reg.active_account_key = try gpa.dupe(u8, "user-1::acc-1");
     reg.accounts.items[0].last_usage = testUsageSnapshotWithResets(now, 99, 10, 3600, 7 * 24 * 3600);
     reg.accounts.items[1].last_usage = testUsageSnapshotWithResets(now, 10, 10, 30 * 60, 6 * 60 * 60);
@@ -1003,8 +1001,8 @@ test "Scenario: Given an active api status error when picking an auto-switch tar
 
     const now = std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds();
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .team);
-    try appendTestAccount(gpa, &reg, "user-1::acc-2", "backup@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .pro);
+    try appendTestAccount(gpa, &reg, "user-1::acc-2", "backup@example.com", "", .pro);
     reg.active_account_key = try gpa.dupe(u8, "user-1::acc-1");
     reg.accounts.items[0].last_usage = testUsageSnapshot(now, 20, 20);
     reg.accounts.items[1].last_usage = testUsageSnapshot(now, 10, 10);
@@ -1031,8 +1029,8 @@ test "Scenario: Given only exhausted candidates when picking an auto-switch targ
 
     const now = std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds();
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .team);
-    try appendTestAccount(gpa, &reg, "user-1::acc-2", "backup@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .pro);
+    try appendTestAccount(gpa, &reg, "user-1::acc-2", "backup@example.com", "", .pro);
     reg.active_account_key = try gpa.dupe(u8, "user-1::acc-1");
     reg.accounts.items[0].last_usage = testUsageSnapshot(now, 100, 10);
     reg.accounts.items[1].last_usage = testUsageSnapshot(now, 100, 100);
@@ -1055,7 +1053,7 @@ test "Scenario: Given usage overrides when rendering switch list then errored ro
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy@example.com", "", .pro);
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "failed@example.com", "", .free);
 
     const usage_overrides = [_]?[]const u8{ null, "401" };
@@ -1079,8 +1077,8 @@ test "Scenario: Given an active account when rendering switch list then non-curs
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "cursor@example.com", "", .team);
-    try appendTestAccount(gpa, &reg, "user-1::acc-2", "active@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "cursor@example.com", "", .pro);
+    try appendTestAccount(gpa, &reg, "user-1::acc-2", "active@example.com", "", .pro);
     reg.active_account_key = try gpa.dupe(u8, "user-1::acc-2");
 
     var rows = try buildSwitchRows(gpa, &reg);
@@ -1126,8 +1124,8 @@ test "Scenario: Given the active account is selected when rendering switch list 
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .team);
-    try appendTestAccount(gpa, &reg, "user-1::acc-2", "other@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .pro);
+    try appendTestAccount(gpa, &reg, "user-1::acc-2", "other@example.com", "", .pro);
     reg.active_account_key = try gpa.dupe(u8, "user-1::acc-1");
 
     var rows = try buildSwitchRows(gpa, &reg);
@@ -1176,8 +1174,8 @@ test "Scenario: Given an active account when rendering remove list then non-curs
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "cursor@example.com", "", .team);
-    try appendTestAccount(gpa, &reg, "user-1::acc-2", "active@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "cursor@example.com", "", .pro);
+    try appendTestAccount(gpa, &reg, "user-1::acc-2", "active@example.com", "", .pro);
     reg.active_account_key = try gpa.dupe(u8, "user-1::acc-2");
 
     var rows = try buildSwitchRows(gpa, &reg);
@@ -1215,8 +1213,8 @@ test "Scenario: Given the active account is the remove cursor then the cursor ma
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .team);
-    try appendTestAccount(gpa, &reg, "user-1::acc-2", "other@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "active@example.com", "", .pro);
+    try appendTestAccount(gpa, &reg, "user-1::acc-2", "other@example.com", "", .pro);
     reg.active_account_key = try gpa.dupe(u8, "user-1::acc-1");
 
     var rows = try buildSwitchRows(gpa, &reg);
@@ -1316,7 +1314,7 @@ test "Scenario: Given switch live feedback when rendering switch screen then the
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy@example.com", "", .pro);
     var rows = try buildSwitchRows(gpa, &reg);
     defer rows.deinit(gpa);
 
@@ -1346,7 +1344,7 @@ test "Scenario: Given switch live feedback with color when rendering switch scre
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy@example.com", "", .pro);
     var rows = try buildSwitchRows(gpa, &reg);
     defer rows.deinit(gpa);
 
@@ -1388,7 +1386,7 @@ test "Scenario: Given live screen status and footers with color when rendering t
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "healthy@example.com", "", .pro);
     var rows = try buildSwitchRows(gpa, &reg);
     defer rows.deinit(gpa);
 
@@ -1477,7 +1475,7 @@ test "Scenario: Given usage overrides when rendering remove list then failed row
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .pro);
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "user@example.com", "", .free);
 
     const usage_overrides = [_]?[]const u8{ null, "401" };
@@ -1499,7 +1497,7 @@ test "Scenario: Given usage overrides when rendering switch list with color then
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .pro);
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "user@example.com", "", .free);
 
     const usage_overrides = [_]?[]const u8{ null, "401" };
@@ -1520,7 +1518,7 @@ test "Scenario: Given usage overrides when rendering remove list with color then
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .team);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .pro);
     try appendTestAccount(gpa, &reg, "user-1::acc-2", "user@example.com", "", .free);
 
     const usage_overrides = [_]?[]const u8{ null, "401" };
@@ -1542,12 +1540,12 @@ test "Scenario: Given a usage snapshot plan when building switch rows then the d
     var reg = makeTestRegistry();
     defer reg.deinit(gpa);
 
-    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .plus);
+    try appendTestAccount(gpa, &reg, "user-1::acc-1", "user@example.com", "", .pro);
     reg.accounts.items[0].last_usage = .{
         .primary = null,
         .secondary = null,
         .credits = null,
-        .plan_type = .team,
+        .plan_type = .pro,
     };
 
     var rows = try buildSwitchRows(gpa, &reg);

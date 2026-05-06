@@ -104,7 +104,8 @@ pub const ImportReport = import_mod.ImportReport;
 pub fn purgeRegistryFromImportSource(allocator: std.mem.Allocator, gemini_home: []const u8, auth_path: ?[]const u8, alias: ?[]const u8) !ImportReport {
     return import_mod.purgeRegistryFromImportSourceWithSaver(allocator, gemini_home, auth_path, alias, saveRegistry);
 }
-pub const importCpaPath = import_mod.importCpaPath;
+// Gemini doesn't support CPA (Codex Proxy API)
+// pub const importCpaPath = import_mod.importCpaPath;
 pub const importAuthPath = import_mod.importAuthPath;
 const importCpaFile = import_mod.importCpaFile;
 const importConvertedAuthInfo = import_mod.importConvertedAuthInfo;

@@ -78,9 +78,6 @@ pub fn handleList(allocator: std.mem.Allocator, gemini_home: []const u8, opts: c
 
     try ensureForegroundNodeAvailableWithApiEnabled(
         allocator,
-        gemini_home,
-        &reg,
-        .list,
         usage_api_enabled,
         account_api_enabled,
     );
@@ -92,7 +89,7 @@ pub fn handleList(allocator: std.mem.Allocator, gemini_home: []const u8, opts: c
         usage_api_enabled,
     );
     defer usage_state.deinit(allocator);
-    try maybeRefreshForegroundAccountNamesWithAccountApiEnabled(
+    _ = try maybeRefreshForegroundAccountNamesWithAccountApiEnabled(
         allocator,
         gemini_home,
         &reg,

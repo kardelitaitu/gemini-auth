@@ -118,17 +118,15 @@ fn appendLiveMergeTestAccount(
     alias: []const u8,
 ) !void {
     const sep = std.mem.lastIndexOf(u8, account_key, "::") orelse return error.InvalidRecordKey;
-    const google_user_id = account_key[0..sep];
     const google_user_id = account_key[sep + 2 ..];
     try reg.accounts.append(allocator, .{
         .account_key = try allocator.dupe(u8, account_key),
         .google_user_id = try allocator.dupe(u8, google_user_id),
-        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, alias),
+        .name = null,
         .account_name = null,
-        .plan = .team,
-        .plan = .chatgpt,
+        .plan = plan,
         .created_at = 1,
         .last_used_at = null,
         .last_usage = null,
@@ -546,7 +544,7 @@ test "remove live action patches the current display after deleting the active a
         .primary = .{ .used_percent = 12.0, .window_minutes = 300, .resets_at = future_primary_reset_at },
         .secondary = .{ .used_percent = 18.0, .window_minutes = 10080, .resets_at = future_secondary_reset_at },
         .credits = null,
-        .plan_type = .plus,
+        .plan_type = .pro,
     });
     reg.accounts.items[1].last_usage_at = nowSeconds() - 60;
     try registry.setActiveAccountKey(gpa, &reg, alpha_key);

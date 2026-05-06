@@ -610,18 +610,16 @@ fn appendCustomAccount(
     plan: registry.PlanType,
 ) !void {
     const sep = std.mem.lastIndexOf(u8, record_key, "::") orelse return error.InvalidRecordKey;
-    const google_user_id = record_key[0..sep];
     const google_user_id = record_key[sep + 2 ..];
     try reg.accounts.append(allocator, .{
         .account_key = try allocator.dupe(u8, record_key),
         .google_user_id = try allocator.dupe(u8, google_user_id),
-        .google_user_id = try allocator.dupe(u8, google_user_id),
         .email = try allocator.dupe(u8, email),
         .alias = try allocator.dupe(u8, alias),
+        .name = null,
         .account_name = null,
         .plan = plan,
-        .plan = .chatgpt,
-        .created_at = std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds(),
+        .created_at = 1640995200000,
         .last_used_at = null,
         .last_usage = null,
         .last_usage_at = null,
@@ -638,7 +636,7 @@ test "Scenario: Given device auth login when running login then it forwards the 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath(".gemini");
     try tmp.dir.makePath("fake-bin");
@@ -708,12 +706,12 @@ test "Scenario: Given GEMINI_HOME override when running login then it stores aut
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath("custom-gemini");
     try tmp.dir.makePath("fake-bin");
 
-    const custom_gemini_home = try tmp.dir.realpathAlloc(gpa, "custom-gemini");
+    const custom_gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "custom-gemini");
     defer gpa.free(custom_gemini_home);
 
     const expected_email = "override@example.com";
@@ -763,7 +761,7 @@ test "Scenario: Given failed device auth login with existing auth json when runn
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath(".gemini");
     try tmp.dir.makePath("fake-bin");
@@ -818,11 +816,11 @@ test "Scenario: Given first-time use on v0.2 with an existing oauth_creds.json a
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath(".gemini");
     try writeFailingFakeNode(tmp.dir);
-    const fake_node_dir = try tmp.dir.realpathAlloc(gpa, "fake-node-bin");
+    const fake_node_dir = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "fake-node-bin");
     defer gpa.free(fake_node_dir);
     const path_override = try prependPathEntryAlloc(gpa, fake_node_dir);
     defer gpa.free(path_override);
@@ -874,11 +872,11 @@ test "Scenario: Given upgrade from v0.1.x to v0.2 with legacy accounts data when
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath(".gemini/accounts");
     try writeFailingFakeNode(tmp.dir);
-    const fake_node_dir = try tmp.dir.realpathAlloc(gpa, "fake-node-bin");
+    const fake_node_dir = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "fake-node-bin");
     defer gpa.free(fake_node_dir);
     const path_override = try prependPathEntryAlloc(gpa, fake_node_dir);
     defer gpa.free(path_override);
@@ -955,7 +953,7 @@ test "Scenario: Given repeated single-file import when running import then first
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath("imports");
 
@@ -995,7 +993,7 @@ test "Scenario: Given single-file import missing email when running import then 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath("imports");
 
@@ -1031,7 +1029,7 @@ test "Scenario: Given purge with no recoverable active auth when running import 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath(".gemini/accounts");
 
@@ -1110,7 +1108,7 @@ test "Scenario: Given directory import with new updated and invalid files when r
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath("imports");
 
@@ -1199,7 +1197,7 @@ test "Scenario: Given directory import with an empty json file when running impo
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath("imports");
 
@@ -1248,7 +1246,7 @@ test "Scenario: Given directory import with a broken symlink when running import
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath("imports");
 
@@ -1295,7 +1293,7 @@ test "Scenario: Given cpa directory in default location when running import cpa 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath(".cli-proxy-api");
 
@@ -1344,7 +1342,7 @@ test "Scenario: Given missing default cpa directory when running import cpa then
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     const result = try runCliWithIsolatedHome(gpa, project_root, home_root, &[_][]const u8{ "import", "--cpa" });
@@ -1363,7 +1361,7 @@ test "Scenario: Given cpa file import when running import cpa then it stores a s
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     try tmp.dir.makePath("imports");
 
@@ -1409,7 +1407,7 @@ test "Scenario: Given default api usage when rendering help then the api enable 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     const result = try runCliWithIsolatedHome(gpa, project_root, home_root, &[_][]const u8{});
@@ -1433,7 +1431,7 @@ test "Scenario: Given switch query with a direct local match when running switch
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "active@example.com", &[_]SeedAccount{
@@ -1465,7 +1463,7 @@ test "Scenario: Given switch query with a direct local match when running switch
     try fs.cwd().writeFile(.{ .sub_path = backup_snapshot_path, .data = backup_auth });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPath(
@@ -1501,7 +1499,7 @@ test "Scenario: Given switch query with multiple matches when running switch the
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -1534,7 +1532,7 @@ test "Scenario: Given switch query with multiple matches when running switch the
     try fs.cwd().writeFile(.{ .sub_path = beta_snapshot_path, .data = beta_auth });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPathAndStdin(
@@ -1575,7 +1573,7 @@ test "Scenario: Given switch query with no matches when running switch then it e
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "active@example.com", &[_]SeedAccount{
@@ -1584,7 +1582,7 @@ test "Scenario: Given switch query with no matches when running switch then it e
     });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPath(
@@ -1617,7 +1615,7 @@ test "Scenario: Given list with api override when api config is disabled then it
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -1626,7 +1624,7 @@ test "Scenario: Given list with api override when api config is disabled then it
     try setRegistryApiConfig(gpa, home_root, false, false);
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPath(
@@ -1652,7 +1650,7 @@ test "Scenario: Given list with skip-api when running list then it does not requ
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -1661,7 +1659,7 @@ test "Scenario: Given list with skip-api when running list then it does not requ
     });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPath(
@@ -1690,7 +1688,7 @@ test "Scenario: Given switch query with api flag when running switch then it ret
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "active@example.com", &[_]SeedAccount{
@@ -1699,7 +1697,7 @@ test "Scenario: Given switch query with api flag when running switch then it ret
     });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPath(
@@ -1726,7 +1724,7 @@ test "Scenario: Given switch query with skip-api flag when running switch then i
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "active@example.com", &[_]SeedAccount{
@@ -1735,7 +1733,7 @@ test "Scenario: Given switch query with skip-api flag when running switch then i
     });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPath(
@@ -1762,7 +1760,7 @@ test "Scenario: Given switch without api flags when running interactively then i
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "active@example.com", &[_]SeedAccount{
@@ -1771,7 +1769,7 @@ test "Scenario: Given switch without api flags when running interactively then i
     });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPathAndStdin(
@@ -1798,7 +1796,7 @@ test "Scenario: Given switch with skip-api when running interactively then it do
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "active@example.com", &[_]SeedAccount{
@@ -1838,7 +1836,7 @@ test "Scenario: Given switch with skip-api when running interactively then it do
     try fs.cwd().writeFile(.{ .sub_path = backup_snapshot_path, .data = backup_auth });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPathAndStdin(
@@ -1876,7 +1874,7 @@ test "Scenario: Given remove query with one match when running remove then it de
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "keeper@example.com", &[_]SeedAccount{
@@ -1940,7 +1938,7 @@ test "Scenario: Given remove with account key selector when running remove then 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "keeper@example.com", &[_]SeedAccount{
@@ -1982,7 +1980,7 @@ test "Scenario: Given remove with multiple selectors when running remove then it
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "beta@example.com", &[_]SeedAccount{
@@ -2026,7 +2024,7 @@ test "Scenario: Given remove query with api flag when running remove then it ret
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -2035,7 +2033,7 @@ test "Scenario: Given remove query with api flag when running remove then it ret
     });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPath(
@@ -2062,7 +2060,7 @@ test "Scenario: Given remove query with skip-api flag when running remove then i
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -2071,7 +2069,7 @@ test "Scenario: Given remove query with skip-api flag when running remove then i
     });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPath(
@@ -2098,7 +2096,7 @@ test "Scenario: Given interactive remove with api flag when running remove then 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -2107,7 +2105,7 @@ test "Scenario: Given interactive remove with api flag when running remove then 
     });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPathAndStdin(
@@ -2135,7 +2133,7 @@ test "Scenario: Given remove without api flags when running remove then it requi
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -2144,7 +2142,7 @@ test "Scenario: Given remove without api flags when running remove then it requi
     });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPathAndStdin(
@@ -2172,7 +2170,7 @@ test "Scenario: Given remove without selectors and api disabled in config when r
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -2185,7 +2183,7 @@ test "Scenario: Given remove without selectors and api disabled in config when r
     defer gpa.free(gemini_home);
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPathAndStdin(
@@ -2218,7 +2216,7 @@ test "Scenario: Given remove with skip-api when running remove then it does not 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -2227,7 +2225,7 @@ test "Scenario: Given remove with skip-api when running remove then it does not 
     });
 
     try tmp.dir.makePath("empty-bin");
-    const empty_path = try tmp.dir.realpathAlloc(gpa, "empty-bin");
+    const empty_path = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "empty-bin");
     defer gpa.free(empty_path);
 
     const result = try runCliWithIsolatedHomeAndPathAndStdin(
@@ -2255,7 +2253,7 @@ test "Scenario: Given active account removal with a replacement when running rem
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "active@example.com", &[_]SeedAccount{
@@ -2309,7 +2307,7 @@ test "Scenario: Given active account removal with missing auth json when running
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "active@example.com", &[_]SeedAccount{
@@ -2360,7 +2358,7 @@ test "Scenario: Given missing auth json and no valid active key when running rem
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "active@example.com", &[_]SeedAccount{
@@ -2426,7 +2424,7 @@ test "Scenario: Given auth json already points at another registry account when 
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -2434,7 +2432,7 @@ test "Scenario: Given auth json already points at another registry account when 
         .{ .email = "beta@example.com", .alias = "" },
     });
     try writeFailingFakeNode(tmp.dir);
-    const fake_node_dir = try tmp.dir.realpathAlloc(gpa, "fake-node-bin");
+    const fake_node_dir = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, "fake-node-bin");
     defer gpa.free(fake_node_dir);
     const path_override = try prependPathEntryAlloc(gpa, fake_node_dir);
     defer gpa.free(path_override);
@@ -2503,7 +2501,7 @@ test "Scenario: Given remove query with no matches when running remove then it e
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "keeper@example.com", &[_]SeedAccount{
@@ -2534,7 +2532,7 @@ test "Scenario: Given multiple remove queries with no matches when running remov
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "keeper@example.com", &[_]SeedAccount{
@@ -2571,7 +2569,7 @@ test "Scenario: Given non-tty remove with invalid selection input when running r
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "keeper@example.com", &[_]SeedAccount{
@@ -2608,7 +2606,7 @@ test "Scenario: Given remove query with multiple matches in non-tty mode when ru
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "keeper@example.com", &[_]SeedAccount{
@@ -2648,7 +2646,7 @@ test "Scenario: Given remove fuzzy selector with multiple matches when running r
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "keeper@example.com", &[_]SeedAccount{
@@ -2688,15 +2686,15 @@ test "Scenario: Given remove query with duplicate-email accounts when running re
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     const gemini_home = try geminiHomeAlloc(gpa, home_root);
     defer gpa.free(gemini_home);
     var reg = fixtures.makeEmptyRegistry();
     defer reg.deinit(gpa);
-    try appendCustomAccount(gpa, &reg, "user-a::acct-work", "alice@example.com", "work", .team);
-    try appendCustomAccount(gpa, &reg, "user-b::acct-personal", "alice@example.com", "personal", .plus);
+    try appendCustomAccount(gpa, &reg, "user-a::acct-work", "alice@example.com", "work", .pro);
+    try appendCustomAccount(gpa, &reg, "user-b::acct-personal", "alice@example.com", "personal", .pro);
     reg.active_account_key = try gpa.dupe(u8, "user-a::acct-work");
     reg.active_account_activated_at_ms = std.Io.Timestamp.now(app_runtime.io(), .real).toMilliseconds();
     try registry.saveRegistry(gpa, gemini_home, &reg);
@@ -2725,7 +2723,7 @@ test "Scenario: Given remove query deletes the final active account when running
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "solo@example.com", &[_]SeedAccount{
@@ -2774,7 +2772,7 @@ test "Scenario: Given non-tty stdin when running interactive remove then it fall
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "keeper@example.com", &[_]SeedAccount{
@@ -2803,7 +2801,7 @@ test "Scenario: Given remove all when running remove then it clears all accounts
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -2843,7 +2841,7 @@ test "Scenario: Given remove all with malformed auth json when running remove th
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -2884,7 +2882,7 @@ test "Scenario: Given remove all with tracked auth json and no active key when r
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -2933,7 +2931,7 @@ test "Scenario: Given remove all with tracked auth json and stale active key whe
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "alpha@example.com", &[_]SeedAccount{
@@ -2982,7 +2980,7 @@ test "Scenario: Given unsynced active auth when removing the active registry acc
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "active@example.com", &[_]SeedAccount{
@@ -3040,7 +3038,7 @@ test "Scenario: Given parseable auth without email for the active account when r
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     try seedRegistryWithAccounts(gpa, home_root, "active@example.com", &[_]SeedAccount{
@@ -3100,7 +3098,7 @@ test "Scenario: Given default api usage when rendering status then no warning is
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     const result = try runCliWithIsolatedHome(gpa, project_root, home_root, &[_][]const u8{"status"});
@@ -3123,7 +3121,7 @@ test "Scenario: Given config live interval when running command then registry an
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
     const gemini_home = try geminiHomeAlloc(gpa, home_root);
     defer gpa.free(gemini_home);
@@ -3155,7 +3153,7 @@ test "Scenario: Given default api usage when listing accounts then no warning is
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const home_root = try tmp.dir.realpathAlloc(gpa, ".");
+    const home_root = try app_runtime.realPathFileAlloc(gpa, tmp.dir.inner, ".");
     defer gpa.free(home_root);
 
     const result = try runCliWithIsolatedHome(gpa, project_root, home_root, &[_][]const u8{"list"});

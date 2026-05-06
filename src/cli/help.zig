@@ -94,7 +94,7 @@ pub fn writeHelp(
     if (use_color) try out.writeAll(style.ansi.reset);
     try out.writeAll("\n");
     try out.writeAll("  Run `gemini-auth <command> --help` for command-specific usage details.\n");
-    try out.writeAll("  `config api enable` may trigger OpenAI account restrictions or suspension in some environments.\n");
+    try out.writeAll("  `config api enable` may trigger Google account restrictions or suspension in some environments.\n");
 }
 
 fn writeCommandSummary(out: *std.Io.Writer, use_color: bool, command: []const u8, description: []const u8) !void {

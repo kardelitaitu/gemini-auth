@@ -20,7 +20,7 @@ pub fn handleImport(allocator: std.mem.Allocator, gemini_home: []const u8, opts:
     defer reg.deinit(allocator);
     var report = switch (opts.source) {
         .standard => try registry.importAuthPath(allocator, gemini_home, &reg, opts.auth_path.?, opts.alias),
-        .cpa => try registry.importCpaPath(allocator, gemini_home, &reg, opts.auth_path, opts.alias),
+        .cpa => return error.CpaNotSupportedForGemini,
     };
     defer report.deinit(allocator);
     if (report.appliedCount() > 0) {
@@ -29,10 +29,8 @@ pub fn handleImport(allocator: std.mem.Allocator, gemini_home: []const u8, opts:
             defer if (imported_info) |*info| info.deinit(allocator);
             _ = try refreshAccountNamesAfterImport(
                 allocator,
+                gemini_home,
                 &reg,
-                opts.purge,
-                report.render_kind,
-                if (imported_info) |*info| info else null,
                 defaultAccountFetcher,
             );
         }

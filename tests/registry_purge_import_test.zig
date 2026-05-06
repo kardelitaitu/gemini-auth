@@ -1,5 +1,6 @@
 const std = @import("std");
 const fs = @import("gemini_auth").core.compat_fs;
+const app_runtime = @import("gemini_auth").core.runtime;
 const builtin = @import("builtin");
 const registry = @import("gemini_auth").registry;
 
@@ -18,11 +19,11 @@ fn legacySnapshotNameForEmail(allocator: std.mem.Allocator, email: []const u8) !
 }
 
 fn accountKeyForEmailAlloc(allocator: std.mem.Allocator, email: []const u8) ![]u8 {
-    const google_user_id = try chatgptUserIdForEmailAlloc(allocator, email);
-    defer allocator.free(google_user_id);
-    const google_user_id = try chatgptAccountIdForEmailAlloc(allocator, email);
-    defer allocator.free(google_user_id);
-    return std.fmt.allocPrint(allocator, "{s}::{s}", .{ google_user_id, google_user_id });
+    const user_id = try chatgptUserIdForEmailAlloc(allocator, email);
+    defer allocator.free(user_id);
+    const account_id = try chatgptAccountIdForEmailAlloc(allocator, email);
+    defer allocator.free(account_id);
+    return std.fmt.allocPrint(allocator, "{s}::{s}", .{ user_id, account_id });
 }
 
 fn hashPart(seed: u64, email: []const u8, modulus: u64) u64 {
@@ -56,10 +57,10 @@ fn chatgptUserIdForEmailAlloc(allocator: std.mem.Allocator, email: []const u8) !
 }
 
 fn authJsonWithEmailPlan(allocator: std.mem.Allocator, email: []const u8, plan: []const u8) ![]u8 {
-    const google_user_id = try chatgptAccountIdForEmailAlloc(allocator, email);
-    defer allocator.free(google_user_id);
-    const google_user_id = try chatgptUserIdForEmailAlloc(allocator, email);
-    defer allocator.free(google_user_id);
+    const account_id = try chatgptAccountIdForEmailAlloc(allocator, email);
+    defer allocator.free(account_id);
+    const user_id = try chatgptUserIdForEmailAlloc(allocator, email);
+    defer allocator.free(user_id);
     const header = "{\"alg\":\"none\",\"typ\":\"JWT\"}";
     const payload = try std.fmt.allocPrint(
         allocator,
@@ -85,15 +86,15 @@ fn authJsonWithEmailPlan(allocator: std.mem.Allocator, email: []const u8, plan: 
 fn authJsonWithExplicitIds(
     allocator: std.mem.Allocator,
     email: []const u8,
-    google_user_id: []const u8,
-    google_user_id: []const u8,
+    account_id: []const u8,
+    user_id: []const u8,
     plan: []const u8,
 ) ![]u8 {
     const header = "{\"alg\":\"none\",\"typ\":\"JWT\"}";
     const payload = try std.fmt.allocPrint(
         allocator,
         "{{\"email\":\"{s}\",\"https://www.googleapis.com/auth\":{{\"google_user_id\":\"{s}\",\"google_user_id\":\"{s}\",\"user_id\":\"{s}\",\"chatgpt_plan_type\":\"{s}\"}}}}",
-        .{ email, google_user_id, google_user_id, google_user_id, plan },
+        .{ email, account_id, user_id, user_id, plan },
     );
     defer allocator.free(payload);
 
@@ -116,7 +117,7 @@ test "Scenario: Given legacy version key current-layout registry when loading th
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
     try tmp.dir.writeFile(.{
@@ -151,7 +152,7 @@ test "Scenario: Given newer schema version when loading then it is rejected" {
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
     try tmp.dir.writeFile(.{
@@ -172,7 +173,7 @@ test "Scenario: Given v2 registry when loading then it migrates to record-key la
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -230,7 +231,7 @@ test "Scenario: Given v2 registry when loading then it migrates to record-key la
     try std.testing.expect(loaded.accounts.items[0].last_used_at.? >= 2);
     try std.testing.expectEqual(@as(i64, 3), loaded.accounts.items[0].last_usage_at.?);
     try std.testing.expectEqual(@as(f64, 25.0), loaded.accounts.items[0].last_usage.?.primary.?.used_percent);
-    try std.testing.expectEqual(registry.PlanType.team, loaded.accounts.items[0].last_usage.?.plan_type.?);
+    try std.testing.expectEqual(registry.PlanType.pro, loaded.accounts.items[0].last_usage.?.plan_type.?);
 
     const migrated_path = try registry.accountAuthPath(gpa, gemini_home, account_id);
     defer gpa.free(migrated_path);
@@ -253,7 +254,7 @@ test "Scenario: Given purge import with file when rebuilding then current auth i
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
     try tmp.dir.makePath("imports");
@@ -349,7 +350,7 @@ test "Scenario: Given purge with newer schema registry when rebuilding then auto
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
     try tmp.dir.makePath("imports");
@@ -396,7 +397,7 @@ test "Scenario: Given purge with malformed registry when rebuilding then auto an
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
     try tmp.dir.makePath("imports");
@@ -442,7 +443,7 @@ test "Scenario: Given purge without path when rebuilding then it scans account s
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -473,7 +474,7 @@ test "Scenario: Given purge without path and only auth backups when rebuilding t
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -504,7 +505,7 @@ test "Scenario: Given purge without a recoverable active auth when rebuilding th
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -584,7 +585,7 @@ test "Scenario: Given purge without path and an empty snapshot when rebuilding t
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -622,7 +623,7 @@ test "Scenario: Given purge without path and a broken snapshot symlink when rebu
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -658,7 +659,7 @@ test "Scenario: Given purge without path and duplicate snapshots when rebuilding
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -692,7 +693,7 @@ test "Scenario: Given purge without path and duplicate snapshots when rebuilding
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[1].email, "zed@example.com"));
 
     const duplicate_idx = registry.findAccountIndexByAccountKey(&loaded, duplicate_record_key) orelse return error.TestExpectedEqual;
-    try std.testing.expectEqual(registry.PlanType.team, loaded.accounts.items[duplicate_idx].plan.?);
+    try std.testing.expectEqual(registry.PlanType.pro, loaded.accounts.items[duplicate_idx].plan.?);
 
     var snapshot = try fs.cwd().openFile(current_snapshot_path, .{});
     defer snapshot.close();
@@ -706,7 +707,7 @@ test "Scenario: Given same team account id across different users when purging t
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -759,7 +760,7 @@ test "Scenario: Given same user across team and free workspaces when purging the
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
     try tmp.dir.makePath("accounts");
 
@@ -804,7 +805,7 @@ test "Scenario: Given same user across team and free workspaces when purging the
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[free_idx].google_user_id, shared_google_user_id));
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[team_idx].google_user_id, "d52355a3-bfa6-4d2b-882e-d4a2927f488c"));
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[free_idx].google_user_id, "fe43c186-7b49-4880-8744-e662b796a9d9"));
-    try std.testing.expectEqual(registry.PlanType.team, loaded.accounts.items[team_idx].plan.?);
+    try std.testing.expectEqual(registry.PlanType.pro, loaded.accounts.items[team_idx].plan.?);
     try std.testing.expectEqual(registry.PlanType.free, loaded.accounts.items[free_idx].plan.?);
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[team_idx].email, shared_email));
     try std.testing.expect(std.mem.eql(u8, loaded.accounts.items[free_idx].email, shared_email));
@@ -815,7 +816,7 @@ test "Scenario: Given purge without accounts directory when rebuilding then curr
     var tmp = fs.tmpDir(.{});
     defer tmp.cleanup();
 
-    const gemini_home = try tmp.dir.realpathAlloc(gpa, ".");
+    const gemini_home = try app_runtime.realPathFileAlloc(gpa, tmp.dir, ".");
     defer gpa.free(gemini_home);
 
     const active_auth = try authJsonWithEmailPlan(gpa, "active@example.com", "team");

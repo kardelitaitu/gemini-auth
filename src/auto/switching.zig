@@ -70,6 +70,78 @@ pub fn maybeAutoSwitchWithUsageFetcher(
     return maybeAutoSwitchWithUsageFetcherAndRefreshState(allocator, gemini_home, reg, null, usage_fetcher);
 }
 
+fn performCandidateUpkeepRefresh(
+    allocator: std.mem.Allocator,
+    gemini_home: []const u8,
+    reg: *registry.Registry,
+    refresh_state: *DaemonRefreshState,
+    usage_fetcher: anytype,
+    now: i64,
+    now_ns: i128,
+) !CandidateRefreshSummary {
+    return refreshDaemonCandidateUpkeepWithUsageFetcher(
+        allocator,
+        gemini_home,
+        reg,
+        refresh_state,
+        usage_fetcher,
+        now,
+        now_ns,
+    );
+}
+
+fn performSwitchCandidateValidation(
+    allocator: std.mem.Allocator,
+    gemini_home: []const u8,
+    reg: *registry.Registry,
+    refresh_state: *DaemonRefreshState,
+    usage_fetcher: anytype,
+    now: i64,
+    now_ns: i128,
+    skipped_candidates: *std.ArrayListUnmanaged([]const u8),
+) !CandidateRefreshSummary {
+    return refreshDaemonSwitchCandidatesWithUsageFetcher(
+        allocator,
+        gemini_home,
+        reg,
+        refresh_state,
+        usage_fetcher,
+        now,
+        now_ns,
+        skipped_candidates,
+    );
+}
+
+fn selectBestCandidateForSwitch(
+    allocator: std.mem.Allocator,
+    refresh_state: *DaemonRefreshState,
+    skipped_candidates: []const []const u8,
+    now_ns: i128,
+) !?[]const u8 {
+    return bestDaemonCandidateForSwitch(allocator, refresh_state, skipped_candidates, now_ns);
+}
+
+fn executeAccountSwitch(
+    allocator: std.mem.Allocator,
+    gemini_home: []const u8,
+    reg: *registry.Registry,
+    refresh_state: *DaemonRefreshState,
+    previous_active_key: []const u8,
+    next_active_key: []const u8,
+    now_ns: i128,
+) !void {
+    try registry.activateAccountByKey(allocator, gemini_home, reg, next_active_key);
+    try refresh_state.candidate_index.handleActiveSwitch(
+        allocator,
+        reg,
+        previous_active_key,
+        next_active_key,
+        std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds(),
+    );
+    try refresh_state.markCandidateChecked(allocator, previous_active_key, now_ns);
+    refresh_state.clearCandidateChecked(next_active_key);
+}
+
 pub fn maybeAutoSwitchForDaemonWithUsageFetcher(
     allocator: std.mem.Allocator,
     gemini_home: []const u8,
@@ -97,7 +169,7 @@ pub fn maybeAutoSwitchForDaemonWithUsageFetcher(
     var refreshed_candidates = false;
 
     if (reg.api.usage and !should_switch_current) {
-        const upkeep = try refreshDaemonCandidateUpkeepWithUsageFetcher(
+        const upkeep = try performCandidateUpkeepRefresh(
             allocator,
             gemini_home,
             reg,
@@ -121,7 +193,7 @@ pub fn maybeAutoSwitchForDaemonWithUsageFetcher(
     if (reg.api.usage) {
         var skipped_candidates = std.ArrayListUnmanaged([]const u8).empty;
         defer skipped_candidates.deinit(allocator);
-        const validation = try refreshDaemonSwitchCandidatesWithUsageFetcher(
+        const validation = try performSwitchCandidateValidation(
             allocator,
             gemini_home,
             reg,
@@ -134,7 +206,7 @@ pub fn maybeAutoSwitchForDaemonWithUsageFetcher(
         refreshed_candidates = refreshed_candidates or validation.attempted != 0;
         changed = changed or validation.updated != 0;
 
-        const best_candidate_key = (try bestDaemonCandidateForSwitch(allocator, refresh_state, skipped_candidates.items, now_ns)) orelse return .{
+        const best_candidate_key = (try selectBestCandidateForSwitch(allocator, refresh_state, skipped_candidates.items, now_ns)) orelse return .{
             .refreshed_candidates = refreshed_candidates,
             .state_changed = changed,
             .switched = false,
@@ -155,16 +227,15 @@ pub fn maybeAutoSwitchForDaemonWithUsageFetcher(
 
         const previous_active_key = reg.accounts.items[active_idx].account_key;
         const next_active_key = reg.accounts.items[candidate_idx].account_key;
-        try registry.activateAccountByKey(allocator, gemini_home, reg, next_active_key);
-        try refresh_state.candidate_index.handleActiveSwitch(
+        try executeAccountSwitch(
             allocator,
+            gemini_home,
             reg,
+            refresh_state,
             previous_active_key,
             next_active_key,
-            std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds(),
+            now_ns,
         );
-        try refresh_state.markCandidateChecked(allocator, previous_active_key, now_ns);
-        refresh_state.clearCandidateChecked(next_active_key);
         return .{
             .refreshed_candidates = refreshed_candidates,
             .state_changed = true,
@@ -193,16 +264,15 @@ pub fn maybeAutoSwitchForDaemonWithUsageFetcher(
 
     const previous_active_key = reg.accounts.items[active_idx].account_key;
     const next_active_key = reg.accounts.items[candidate_idx].account_key;
-    try registry.activateAccountByKey(allocator, gemini_home, reg, next_active_key);
-    try refresh_state.candidate_index.handleActiveSwitch(
+    try executeAccountSwitch(
         allocator,
+        gemini_home,
         reg,
+        refresh_state,
         previous_active_key,
         next_active_key,
-        std.Io.Timestamp.now(app_runtime.io(), .real).toSeconds(),
+        now_ns,
     );
-    try refresh_state.markCandidateChecked(allocator, previous_active_key, now_ns);
-    refresh_state.clearCandidateChecked(next_active_key);
     return .{
         .refreshed_candidates = refreshed_candidates,
         .state_changed = true,
@@ -402,6 +472,7 @@ pub fn refreshDaemonCandidateUsageByKeyWithFetcher(
     now_ns: i128,
 ) !SingleCandidateRefreshResult {
     const idx = registry.findAccountIndexByAccountKey(reg, account_key) orelse return .{};
+    const rec = &reg.accounts.items[idx];
     const auth_path = registry.accountAuthPath(allocator, gemini_home, account_key) catch {
         try refresh_state.markCandidateChecked(allocator, account_key, now_ns);
         return .{ .visited = true };
